@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 6c442ceee2c222402559763d29fbc6b9429e93a2
+          ref: 49e05a0c414f55042684947db4e762c14703eae4
           path: product
       - name: Install signing dependency
         run: python3 -m pip install --disable-pip-version-check -r product/catalog/requirements-signing.txt
