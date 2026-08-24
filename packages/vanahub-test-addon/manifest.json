@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "vanahub-test-addon",
+  "name": "VanaHub Test Addon",
+  "description": "A minimal Ashita v4 addon that confirms successful installation by writing a message to the chat log.",
+  "author": "Hildaware",
+  "maintainers": ["bferrari352"],
+  "version": "0.1.0",
+  "changelog": "Initial test release.",
+  "sourceUrl": "https://github.com/Hildaware/vanahub-test-addon",
+  "downloadUrl": "https://github.com/Hildaware/vanahub-test-addon/releases/download/v0.1.0/vanahub-test-addon-0.1.0.zip",
+  "sha256": "8d40e0e2b22663c8c19992c31e2494e3ee16de048aeb04962516917296c18920",
+  "compressedSize": 510,
+  "archiveRoot": "vanahub-test-addon",
+  "entrypoint": "vanahub-test-addon.lua",
+  "declaredCapabilities": ["chat-output"]
+}
