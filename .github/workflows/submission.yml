@@ -12,9 +12,15 @@ permissions:
 
 jobs:
   submit:
-    if: contains(github.event.issue.labels.*.name, 'vanahub-submission')
+    if: startsWith(github.event.issue.title, 'Add package:') && contains(github.event.issue.body, '### Repository URL') && contains(github.event.issue.body, '### Package ID')
     runs-on: ubuntu-latest
     steps:
+      - name: Track catalog submission
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create vanahub-submission --repo "${{ github.repository }}" --color 1f6feb --description "VanaHub catalog admission request" --force
+          gh issue edit "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --add-label vanahub-submission
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0

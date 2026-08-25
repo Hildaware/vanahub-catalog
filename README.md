@@ -14,8 +14,8 @@ Before enabling workflows:
 4. Replace the placeholder public key in the product and publish a client
    release before signing production indexes.
 5. Enable GitHub Pages deployment from Actions.
-6. Enable **Allow GitHub Actions to create and approve pull requests** and
-   create the `vanahub-submission` issue label used by the submission form.
+6. Enable **Allow GitHub Actions to create and approve pull requests**. The
+   submission workflow creates its tracking label automatically.
 
 Routine package PRs may change exactly one `packages/<id>/manifest.json`.
 Workflow, policy, schema, revocation, and signing changes require catalog
