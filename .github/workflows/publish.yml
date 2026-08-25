@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 49e05a0c414f55042684947db4e762c14703eae4
+          ref: ba015e8c5bfa8f80a8214fc4127e31b3ffd85ffc
           path: product
       - name: Install signing dependency
         run: python3 -m pip install --disable-pip-version-check -r product/catalog/requirements-signing.txt
@@ -31,6 +31,7 @@ jobs:
           VANAHUB_ED25519_PRIVATE_KEY: ${{ secrets.VANAHUB_ED25519_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+          test -n "${VANAHUB_ED25519_PRIVATE_KEY:-}"
           shopt -s nullglob
           manifests=(catalog/packages/*/manifest.json)
           for manifest in "${manifests[@]}"; do
@@ -38,6 +39,8 @@ jobs:
           done
           python3 product/tools/build_catalog.py catalog/packages public \
             --revocations catalog/revocations.json
+          test -s public/index.json
+          test -s public/index.json.sig
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: public

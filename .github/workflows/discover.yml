@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 49e05a0c414f55042684947db4e762c14703eae4
+          ref: ba015e8c5bfa8f80a8214fc4127e31b3ffd85ffc
           path: product
       - name: Discover newer releases
         env:
