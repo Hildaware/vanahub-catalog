@@ -24,11 +24,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: ba015e8c5bfa8f80a8214fc4127e31b3ffd85ffc
+          ref: a98faa0583380ccc2cfde4072453bcd7b61a7119
           path: product
+          persist-credentials: false
       - name: Discover authorized release
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -40,6 +42,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          gh auth setup-git
           id=$(jq -r .id candidate.json)
           version=$(jq -r .version candidate.json)
           branch="automation/${id}/${version}"

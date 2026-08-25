@@ -5,43 +5,83 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  actions: read
-  pages: write
-  id-token: write
+permissions: {}
 
 jobs:
-  publish:
+  validate:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
-    environment: github-pages
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           path: catalog
+          persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: ba015e8c5bfa8f80a8214fc4127e31b3ffd85ffc
+          ref: a98faa0583380ccc2cfde4072453bcd7b61a7119
           path: product
-      - name: Install signing dependency
-        run: python3 -m pip install --disable-pip-version-check -r product/catalog/requirements-signing.txt
-      - name: Re-scan and build index
+          persist-credentials: false
+      - name: Re-scan and build unsigned index
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          manifests=(catalog/packages/*/manifest.json)
+          for manifest in "${manifests[@]}"; do
+            if [[ "$(jq -r .id "$manifest")" == "vanahub" ]]; then
+              test "$(jq -r .sourceUrl "$manifest" | tr '[:upper:]' '[:lower:]' | sed 's:/*$::')" = "https://github.com/hildaware/vanahub"
+            fi
+            python3 product/tools/catalog_scan.py "$manifest" --output /tmp/scan-report.json
+          done
+          python3 product/tools/build_catalog.py catalog/packages public \
+            --revocations catalog/revocations.json --unsigned
+          test -s public/index.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-catalog
+          path: public/index.json
+          if-no-files-found: error
+          retention-days: 1
+
+  sign:
+    needs: validate
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: github-pages
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: Hildaware/vanahub
+          ref: a98faa0583380ccc2cfde4072453bcd7b61a7119
+          path: product
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: unsigned-catalog
+          path: public
+      - name: Sign validated index
         env:
           VANAHUB_ED25519_PRIVATE_KEY: ${{ secrets.VANAHUB_ED25519_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           test -n "${VANAHUB_ED25519_PRIVATE_KEY:-}"
-          shopt -s nullglob
-          manifests=(catalog/packages/*/manifest.json)
-          for manifest in "${manifests[@]}"; do
-            python3 product/tools/catalog_scan.py "$manifest" --output /tmp/scan-report.json
-          done
-          python3 product/tools/build_catalog.py catalog/packages public \
-            --revocations catalog/revocations.json
-          test -s public/index.json
+          python3 product/tools/build_catalog.py . public --sign-only
           test -s public/index.json.sig
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: public
+
+  deploy:
+    needs: sign
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
       - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

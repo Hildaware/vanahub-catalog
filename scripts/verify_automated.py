@@ -12,6 +12,7 @@ from discover_releases import authorization, repository_parts
 
 
 SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
+PRIVILEGED_SOURCES = {"vanahub": "https://github.com/Hildaware/vanahub"}
 
 
 def parse_semver(value: str):
@@ -50,6 +51,9 @@ def main() -> int:
     parser.add_argument("--previous-root", type=Path, required=True)
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    privileged_source = PRIVILEGED_SOURCES.get(manifest.get("id"))
+    if privileged_source and manifest.get("sourceUrl", "").rstrip("/").casefold() != privileged_source.casefold():
+        raise SystemExit("privileged package ID is reserved for its official source repository")
     owner, repository = repository_parts(manifest.get("sourceUrl", ""))
     download = re.fullmatch(r"https://github\.com/([^/]+)/([^/]+)/releases/download/[^/]+/[^/]+", manifest.get("downloadUrl", ""))
     if not download or tuple(value.casefold() for value in download.groups()) != (owner.casefold(), repository.casefold()):

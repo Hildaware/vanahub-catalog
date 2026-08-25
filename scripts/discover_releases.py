@@ -15,6 +15,7 @@ from pathlib import Path
 SOURCE = re.compile(r"^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/?$")
 PACKAGE_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
 SEMVER = re.compile(r"^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
+PRIVILEGED_SOURCES = {"vanahub": "https://github.com/Hildaware/vanahub"}
 
 
 def request(url: str, accept: str = "application/vnd.github+json"):
@@ -62,6 +63,9 @@ def authorization(owner: str, repository: str, package_id: str) -> set[str]:
 
 
 def release_manifest(repository_url: str, package_id: str, previous: str | None = None) -> dict:
+    privileged_source = PRIVILEGED_SOURCES.get(package_id)
+    if privileged_source and repository_url.rstrip("/").casefold() != privileged_source.casefold():
+        raise ValueError("privileged package ID is reserved for its official source repository")
     owner, repository = repository_parts(repository_url)
     authorized = authorization(owner, repository, package_id)
     releases = request_json(f"https://api.github.com/repos/{owner}/{repository}/releases?per_page=100")

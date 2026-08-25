@@ -20,6 +20,10 @@ verify_spec.loader.exec_module(verify)
 
 
 class DiscoveryTests(unittest.TestCase):
+    def test_rejects_privileged_id_from_unofficial_repository(self):
+        with self.assertRaisesRegex(ValueError, "reserved"):
+            discover.release_manifest("https://github.com/attacker/vanahub", "vanahub")
+
     def test_semver_order_matches_catalog_admission(self):
         self.assertTrue(verify.greater("1.0.0", "1.0.0-rc.1"))
         self.assertTrue(verify.greater("1.0.0-rc.1", "1.0.0-1"))

@@ -9,11 +9,19 @@ import sys
 import urllib.request
 from pathlib import Path
 
+PRIVILEGED_SOURCES = {"vanahub": "https://github.com/Hildaware/vanahub"}
+
 
 def decode_github_content(content: object) -> bytes:
     if not isinstance(content, str):
         raise ValueError("GitHub content response is not a string")
     return base64.b64decode("".join(content.split()), validate=True)
+
+
+def validate_privileged_source(manifest: dict) -> None:
+    expected = PRIVILEGED_SOURCES.get(manifest.get("id"))
+    if expected and manifest.get("sourceUrl", "").rstrip("/").casefold() != expected.casefold():
+        raise ValueError("privileged package ID is reserved for its official source repository")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     if len(decoded) > 128 * 1024:
         raise SystemExit("manifest exceeds the 128 KiB admission limit")
     manifest = json.loads(decoded)
+    validate_privileged_source(manifest)
     package_id = paths[0].split("/")[1]
     if manifest.get("id") != package_id:
         raise SystemExit("manifest id must match its catalog package directory")

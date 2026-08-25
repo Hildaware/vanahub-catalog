@@ -22,6 +22,13 @@ class ExtractManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not a string"):
             extract.decode_github_content(None)
 
+    def test_rejects_privileged_id_from_unofficial_source(self):
+        with self.assertRaisesRegex(ValueError, "reserved"):
+            extract.validate_privileged_source({
+                "id": "vanahub",
+                "sourceUrl": "https://github.com/attacker/vanahub",
+            })
+
 
 if __name__ == "__main__":
     unittest.main()

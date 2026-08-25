@@ -18,6 +18,7 @@ jobs:
     outputs:
       accepted: ${{ steps.scan.outcome == 'success' || steps.automated_scan.outcome == 'success' }}
       pr_number: ${{ steps.context.outputs.pr_number }}
+      head_sha: ${{ steps.context.outputs.head_sha }}
     steps:
       - name: Resolve pull request context
         id: context
@@ -30,7 +31,7 @@ jobs:
         run: |
           pr="${VH_INPUT_PR:-$VH_EVENT_PR}"
           test -n "$pr"
-          details=$(gh pr view "$pr" --repo "$VH_REPOSITORY" --json author,baseRefOid,headRefName,headRepositoryOwner)
+          details=$(gh pr view "$pr" --repo "$VH_REPOSITORY" --json author,baseRefOid,headRefName,headRefOid,headRepositoryOwner)
           actor=$(jq -r .author.login <<< "$details")
           head=$(jq -r .headRefName <<< "$details")
           owner=$(jq -r .headRepositoryOwner.login <<< "$details")
@@ -40,6 +41,7 @@ jobs:
           fi
           echo "pr_number=$pr" >> "$GITHUB_OUTPUT"
           echo "base_sha=$(jq -r .baseRefOid <<< "$details")" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(jq -r .headRefOid <<< "$details")" >> "$GITHUB_OUTPUT"
           echo "actor=$actor" >> "$GITHUB_OUTPUT"
           echo "automated=$automated" >> "$GITHUB_OUTPUT"
       - name: Check out trusted catalog workflow
@@ -47,21 +49,23 @@ jobs:
         with:
           ref: ${{ steps.context.outputs.base_sha }}
           path: catalog-base
+          persist-credentials: false
       - name: Check out pinned scanner
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: ba015e8c5bfa8f80a8214fc4127e31b3ffd85ffc
+          ref: a98faa0583380ccc2cfde4072453bcd7b61a7119
           path: product
+          persist-credentials: false
       - name: Obtain and constrain changed manifest as data
         env:
           GH_TOKEN: ${{ github.token }}
           VH_REPOSITORY: ${{ github.repository }}
           VH_PR: ${{ steps.context.outputs.pr_number }}
+          VH_HEAD_SHA: ${{ steps.context.outputs.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          VH_HEAD_SHA=$(gh pr view "$VH_PR" --repo "$VH_REPOSITORY" --json headRefOid --jq .headRefOid)
           gh api --paginate "repos/${VH_REPOSITORY}/pulls/${VH_PR}/files" > changed.json
           python3 catalog-base/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json
       - name: Verify and scan
@@ -87,7 +91,6 @@ jobs:
     needs: scan
     if: needs.scan.outputs.accepted == 'true'
     permissions:
-      actions: write
       contents: write
       pull-requests: write
     runs-on: ubuntu-latest
@@ -97,12 +100,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VH_REPOSITORY: ${{ github.repository }}
           VH_PR: ${{ needs.scan.outputs.pr_number }}
-        run: gh pr merge "$VH_PR" --repo "$VH_REPOSITORY" --auto --squash
-      - name: Publish merged catalog
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VH_REPOSITORY: ${{ github.repository }}
-          VH_PR: ${{ needs.scan.outputs.pr_number }}
-        run: |
-          test "$(gh pr view "$VH_PR" --repo "$VH_REPOSITORY" --json state --jq .state)" = "MERGED"
-          gh workflow run publish.yml --repo "$VH_REPOSITORY" --ref main
+          VH_HEAD_SHA: ${{ needs.scan.outputs.head_sha }}
+        run: gh pr merge "$VH_PR" --repo "$VH_REPOSITORY" --auto --squash --match-head-commit "$VH_HEAD_SHA"
