@@ -1,0 +1,56 @@
+name: Discover VanaHub releases
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: catalog-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: Hildaware/vanahub
+          ref: 49e05a0c414f55042684947db4e762c14703eae4
+          path: product
+      - name: Discover newer releases
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/discover_releases.py poll --packages-root packages --output-dir candidates
+      - name: Open audited update PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          for candidate in candidates/*.json; do
+            id=$(jq -r .id "$candidate")
+            version=$(jq -r .version "$candidate")
+            branch="automation/${id}/${version}"
+            if gh pr list --state open --head "$branch" --json number --jq 'length > 0' | grep -q true; then continue; fi
+            python3 product/tools/catalog_scan.py "$candidate" --output scan-report.json
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git switch -C "$branch" origin/main
+            mkdir -p "packages/$id"
+            cp "$candidate" "packages/$id/manifest.json"
+            git add "packages/$id/manifest.json"
+            git commit -m "Publish $id $version"
+            git push --force-with-lease --set-upstream origin "$branch"
+            url=$(gh pr create --base main --head "$branch" --title "Publish $id $version" --body "Automatically discovered from an authorized stable GitHub Release.")
+            number=$(gh pr view "$url" --json number --jq .number)
+            gh workflow run admission.yml --ref main -f pr_number="$number"
+            git switch main
+          done

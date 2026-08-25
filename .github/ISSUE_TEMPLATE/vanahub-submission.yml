@@ -1,0 +1,30 @@
+name: Submit an addon to VanaHub
+description: Request first admission for a release prepared by VanaHub Publisher.
+title: "Add package: "
+labels: [vanahub-submission]
+body:
+  - type: markdown
+    attributes:
+      value: Publish a stable GitHub Release first. It must contain `vanahub-manifest.json` and the normalized addon ZIP.
+  - type: input
+    id: repository
+    attributes:
+      label: Repository URL
+      description: Public GitHub repository authorized by `.vanahub.json`.
+      placeholder: https://github.com/owner/addon
+    validations:
+      required: true
+  - type: input
+    id: package_id
+    attributes:
+      label: Package ID
+      placeholder: my-addon
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I am listed as an authorized maintainer in the repository's `.vanahub.json`.
+          required: true

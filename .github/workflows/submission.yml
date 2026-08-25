@@ -1,0 +1,64 @@
+name: Prepare initial catalog submission
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  submit:
+    if: contains(github.event.issue.labels.*.name, 'vanahub-submission')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: Hildaware/vanahub
+          ref: 49e05a0c414f55042684947db4e762c14703eae4
+          path: product
+      - name: Discover authorized release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/discover_releases.py initial --event "$GITHUB_EVENT_PATH" --output candidate.json
+      - name: Validate candidate
+        run: python3 product/tools/catalog_scan.py candidate.json --output scan-report.json
+      - name: Open audited manifest PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(jq -r .id candidate.json)
+          version=$(jq -r .version candidate.json)
+          branch="automation/${id}/${version}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -C "$branch" origin/main
+          mkdir -p "packages/$id"
+          cp candidate.json "packages/$id/manifest.json"
+          git add "packages/$id/manifest.json"
+          if git diff --cached --quiet; then
+            gh issue comment "${{ github.event.issue.number }}" --body "The catalog already contains $id $version. Future stable releases will be discovered automatically."
+            exit 0
+          fi
+          git commit -m "Publish $id $version"
+          git push --force-with-lease --set-upstream origin "$branch"
+          number=$(gh pr list --state open --head "$branch" --json number --jq '.[0].number // empty')
+          if [[ -z "$number" ]]; then
+            url=$(gh pr create --base main --head "$branch" --title "Publish $id $version" --body "Automated from #${{ github.event.issue.number }} after source authorization and artifact validation.")
+            number=$(gh pr view "$url" --json number --jq .number)
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          gh issue comment "${{ github.event.issue.number }}" --body "Prepared catalog PR #${number}. Admission will re-verify the release before merge."
+      - name: Dispatch admission
+        if: steps.pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh workflow run admission.yml --ref main -f pr_number="$PR_NUMBER"

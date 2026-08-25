@@ -3,6 +3,12 @@ name: Catalog admission
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request created by trusted catalog automation.
+        required: true
+        type: number
 
 jobs:
   scan:
@@ -10,12 +16,36 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     outputs:
-      accepted: ${{ steps.scan.outcome == 'success' }}
+      accepted: ${{ steps.scan.outcome == 'success' || steps.automated_scan.outcome == 'success' }}
+      pr_number: ${{ steps.context.outputs.pr_number }}
     steps:
+      - name: Resolve pull request context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VH_EVENT_PR: ${{ github.event.pull_request.number }}
+          VH_INPUT_PR: ${{ inputs.pr_number }}
+          VH_REPOSITORY: ${{ github.repository }}
+          VH_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          pr="${VH_INPUT_PR:-$VH_EVENT_PR}"
+          test -n "$pr"
+          details=$(gh pr view "$pr" --repo "$VH_REPOSITORY" --json author,baseRefOid,headRefName,headRepositoryOwner)
+          actor=$(jq -r .author.login <<< "$details")
+          head=$(jq -r .headRefName <<< "$details")
+          owner=$(jq -r .headRepositoryOwner.login <<< "$details")
+          automated=false
+          if [[ "$VH_EVENT_NAME" == "workflow_dispatch" && "$owner" == "${VH_REPOSITORY%%/*}" && "$head" == automation/* ]]; then
+            automated=true
+          fi
+          echo "pr_number=$pr" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$(jq -r .baseRefOid <<< "$details")" >> "$GITHUB_OUTPUT"
+          echo "actor=$actor" >> "$GITHUB_OUTPUT"
+          echo "automated=$automated" >> "$GITHUB_OUTPUT"
       - name: Check out trusted catalog workflow
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ steps.context.outputs.base_sha }}
           path: catalog-base
       - name: Check out pinned scanner
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -27,22 +57,31 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VH_REPOSITORY: ${{ github.repository }}
-          VH_PR: ${{ github.event.pull_request.number }}
-          VH_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VH_PR: ${{ steps.context.outputs.pr_number }}
         shell: bash
         run: |
           set -euo pipefail
+          VH_HEAD_SHA=$(gh pr view "$VH_PR" --repo "$VH_REPOSITORY" --json headRefOid --jq .headRefOid)
           gh api --paginate "repos/${VH_REPOSITORY}/pulls/${VH_PR}/files" > changed.json
           python3 product/catalog/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json
       - name: Verify and scan
         id: scan
+        if: steps.context.outputs.automated != 'true'
         uses: ./product/.github/actions/catalog-scan
         with:
           manifest: manifest.json
-          actor: ${{ github.event.pull_request.user.login }}
+          actor: ${{ steps.context.outputs.actor }}
           output: scan-report.json
           previous-root: catalog-base/packages
           token: ${{ github.token }}
+      - name: Re-verify and scan catalog automation
+        id: automated_scan
+        if: steps.context.outputs.automated == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 catalog-base/scripts/verify_automated.py manifest.json --previous-root catalog-base/packages
+          python3 product/tools/catalog_scan.py manifest.json --output scan-report.json
 
   accept:
     needs: scan
@@ -57,13 +96,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VH_REPOSITORY: ${{ github.repository }}
-          VH_PR: ${{ github.event.pull_request.number }}
+          VH_PR: ${{ needs.scan.outputs.pr_number }}
         run: gh pr merge "$VH_PR" --repo "$VH_REPOSITORY" --auto --squash
       - name: Publish merged catalog
         env:
           GH_TOKEN: ${{ github.token }}
           VH_REPOSITORY: ${{ github.repository }}
-          VH_PR: ${{ github.event.pull_request.number }}
+          VH_PR: ${{ needs.scan.outputs.pr_number }}
         run: |
           test "$(gh pr view "$VH_PR" --repo "$VH_REPOSITORY" --json state --jq .state)" = "MERGED"
           gh workflow run publish.yml --repo "$VH_REPOSITORY" --ref main
