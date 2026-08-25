@@ -63,7 +63,7 @@ jobs:
           set -euo pipefail
           VH_HEAD_SHA=$(gh pr view "$VH_PR" --repo "$VH_REPOSITORY" --json headRefOid --jq .headRefOid)
           gh api --paginate "repos/${VH_REPOSITORY}/pulls/${VH_PR}/files" > changed.json
-          python3 product/catalog/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json
+          python3 catalog-base/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json
       - name: Verify and scan
         id: scan
         if: steps.context.outputs.automated != 'true'
