@@ -14,8 +14,10 @@ Before enabling workflows:
 4. Replace the placeholder public key in the product and publish a client
    release before signing production indexes.
 5. Enable GitHub Pages deployment from Actions.
-6. Enable **Allow GitHub Actions to create and approve pull requests**. The
-   submission workflow creates its tracking label automatically.
+6. Optionally enable **Allow GitHub Actions to create and approve pull
+   requests** for zero-click submission PRs. Otherwise, successful submission
+   runs provide a link for opening the validated branch as a PR. The workflow
+   creates its tracking label automatically.
 
 Routine package PRs may change exactly one `packages/<id>/manifest.json`.
 Workflow, policy, schema, revocation, and signing changes require catalog

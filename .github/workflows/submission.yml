@@ -57,7 +57,13 @@ jobs:
           git push --force-with-lease --set-upstream origin "$branch"
           number=$(gh pr list --state open --head "$branch" --json number --jq '.[0].number // empty')
           if [[ -z "$number" ]]; then
-            url=$(gh pr create --base main --head "$branch" --title "Publish $id $version" --body "Automated from #${{ github.event.issue.number }} after source authorization and artifact validation.")
+            if ! url=$(gh pr create --base main --head "$branch" --title "Publish $id $version" --body "Automated from #${{ github.event.issue.number }} after source authorization and artifact validation."); then
+              compare="https://github.com/${{ github.repository }}/compare/main...${branch}?expand=1"
+              message="The validated catalog branch is ready, but this repository does not allow Actions to create pull requests. [Open the prepared catalog PR](${compare})."
+              gh issue comment "${{ github.event.issue.number }}" --body "$message"
+              printf '## Finish submission\n\n%s\n' "$message" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
             number=$(gh pr view "$url" --json number --jq .number)
           fi
           echo "number=$number" >> "$GITHUB_OUTPUT"
