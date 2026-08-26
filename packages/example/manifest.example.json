@@ -11,6 +11,7 @@
   "downloadUrl": "https://github.com/example/example-addon/releases/download/v1.0.0/example-addon.zip",
   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "compressedSize": 1,
+  "categories": ["quality-of-life"],
   "archiveRoot": "example-addon",
   "entrypoint": "example-addon.lua",
   "screenshots": [
