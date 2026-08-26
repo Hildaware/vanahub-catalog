@@ -9,6 +9,10 @@ on:
         description: Pull request created by trusted catalog automation.
         required: true
         type: number
+      expected_head_sha:
+        description: Exact automation commit validated by the preparation workflow.
+        required: true
+        type: string
 
 jobs:
   scan:
@@ -28,6 +32,7 @@ jobs:
           VH_INPUT_PR: ${{ inputs.pr_number }}
           VH_REPOSITORY: ${{ github.repository }}
           VH_EVENT_NAME: ${{ github.event_name }}
+          VH_EXPECTED_HEAD: ${{ inputs.expected_head_sha }}
         run: |
           pr="${VH_INPUT_PR:-$VH_EVENT_PR}"
           test -n "$pr"
@@ -35,9 +40,15 @@ jobs:
           actor=$(jq -r .author.login <<< "$details")
           head=$(jq -r .headRefName <<< "$details")
           owner=$(jq -r .headRepositoryOwner.login <<< "$details")
+          resolved_head=$(jq -r .headRefOid <<< "$details")
           automated=false
-          if [[ "$VH_EVENT_NAME" == "workflow_dispatch" && "$owner" == "${VH_REPOSITORY%%/*}" && "$head" == automation/* ]]; then
-            automated=true
+          if [[ "$owner" == "${VH_REPOSITORY%%/*}" && \
+                "$head" == automation/* && \
+                "$actor" == "app/github-actions" ]]; then
+            if [[ "$VH_EVENT_NAME" == "pull_request_target" || \
+                  ("$resolved_head" == "$VH_EXPECTED_HEAD" && "$VH_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$) ]]; then
+              automated=true
+            fi
           fi
           echo "pr_number=$pr" >> "$GITHUB_OUTPUT"
           echo "base_sha=$(jq -r .baseRefOid <<< "$details")" >> "$GITHUB_OUTPUT"
@@ -57,6 +68,9 @@ jobs:
           ref: 36eec4394432e1f6f565bc1d5fe5bf14b17edaf8
           path: product
           persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
       - name: Obtain and constrain changed manifest as data
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,6 +80,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m pip install --require-hashes --requirement catalog-base/requirements-image.txt
           gh api --paginate "repos/${VH_REPOSITORY}/pulls/${VH_PR}/files" > changed.json
           media=()
           if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then media+=(--allow-media); fi

@@ -1,0 +1,27 @@
+name: Check a VanaHub package update
+description: Request immediate discovery of a registered package's newest stable release.
+title: "Check update: "
+labels: [vanahub-submission]
+body:
+  - type: input
+    id: repository
+    attributes:
+      label: Repository URL
+      description: Must match the source of an existing catalog package.
+      placeholder: https://github.com/owner/addon
+    validations:
+      required: true
+  - type: input
+    id: package_id
+    attributes:
+      label: Package ID
+      placeholder: my-addon
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I am an authorized maintainer and have published a newer stable release.
+          required: true

@@ -1,4 +1,1 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-torch
-transformers
-Pillow==12.3.0
+-r requirements-media.txt

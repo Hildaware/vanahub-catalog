@@ -3,7 +3,10 @@ import hashlib
 import importlib.util
 import sys
 import unittest
+import io
 from pathlib import Path
+
+from PIL import Image
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "extract_pr_manifest.py"
@@ -48,7 +51,9 @@ class ExtractManifestTests(unittest.TestCase):
             )
 
     def test_media_bytes_must_match_filename_and_manifest(self):
-        content = b"\xff\xd8catalog-jpeg\xff\xd9"
+        output = io.BytesIO()
+        Image.new("RGB", (32, 32), (20, 40, 60)).save(output, "JPEG")
+        content = output.getvalue()
         digest = hashlib.sha256(content).hexdigest()
         path = f"media/sample/{digest}.jpg"
         manifest = {
@@ -65,6 +70,43 @@ class ExtractManifestTests(unittest.TestCase):
                 manifest,
                 "https://catalog.example/media",
             )
+
+    def test_icon_media_reference_is_accepted(self):
+        output = io.BytesIO()
+        Image.new("RGB", (32, 32)).save(output, "JPEG")
+        content = output.getvalue()
+        digest = hashlib.sha256(content).hexdigest()
+        extract.validate_media(
+            f"media/sample/{digest}.jpg",
+            content,
+            {"id": "sample", "iconUrl": f"https://catalog.example/media/sample/{digest}.jpg"},
+            "https://catalog.example/media",
+        )
+
+    def test_manifest_rejects_external_media_references(self):
+        with self.assertRaisesRegex(ValueError, "content-addressed catalog media"):
+            extract.validate_catalog_media_references(
+                {"id": "sample", "iconUrl": "https://images.example/icon.png"},
+                "https://catalog.example/media",
+            )
+
+    def test_manifest_maps_every_media_reference_to_catalog_content(self):
+        first = "a" * 64
+        second = "b" * 64
+        self.assertEqual(
+            extract.catalog_media_paths(
+                {
+                    "id": "sample",
+                    "iconUrl": f"https://catalog.example/media/sample/{first}.jpg",
+                    "screenshots": [
+                        f"https://catalog.example/media/sample/{second}.jpg",
+                        f"https://catalog.example/media/sample/{second}.jpg",
+                    ],
+                },
+                "https://catalog.example/media",
+            ),
+            [f"media/sample/{first}.jpg", f"media/sample/{second}.jpg"],
+        )
 
 
 if __name__ == "__main__":

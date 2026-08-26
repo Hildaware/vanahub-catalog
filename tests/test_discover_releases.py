@@ -57,6 +57,27 @@ class DiscoveryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "not an authorized"):
                 discover.initial(event_path, Path(directory) / "manifest.json")
 
+    def test_immediate_update_requires_registered_source_and_maintainer(self):
+        event = {"issue": {"user": {"login": "author"}, "body": "### Repository URL\n\nhttps://github.com/author/sample\n\n### Package ID\n\nsample"}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "packages" / "sample"
+            package.mkdir(parents=True)
+            (package / "manifest.json").write_text(
+                json.dumps({"id": "sample", "version": "1.0.0", "sourceUrl": "https://github.com/author/sample"}),
+                encoding="utf-8",
+            )
+            event_path = root / "event.json"
+            event_path.write_text(json.dumps(event), encoding="utf-8")
+            candidate = {"id": "sample", "version": "1.1.0"}
+            with mock.patch.object(discover, "authorization", return_value={"author"}), mock.patch.object(
+                discover, "release_manifest", return_value=candidate
+            ):
+                discover.update(event_path, root / "packages", root / "output")
+            self.assertEqual(
+                json.loads((root / "output" / "sample.json").read_text()), candidate
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

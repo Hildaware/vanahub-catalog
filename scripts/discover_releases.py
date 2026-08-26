@@ -136,6 +136,24 @@ def poll(packages_root: Path, output_dir: Path):
         (output_dir / f"{current['id']}.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def update(event_path: Path, packages_root: Path, output_dir: Path):
+    repository, package_id, actor = issue_fields(json.loads(event_path.read_text(encoding="utf-8")))
+    current_path = packages_root / package_id / "manifest.json"
+    if not current_path.exists():
+        raise ValueError("package is not registered; use the initial submission form")
+    current = json.loads(current_path.read_text(encoding="utf-8"))
+    if current.get("sourceUrl", "").rstrip("/").casefold() != repository.rstrip("/").casefold():
+        raise ValueError("update repository does not match the registered package")
+    owner, name = repository_parts(repository)
+    if actor.casefold() not in authorization(owner, name, package_id):
+        raise ValueError("update issue author is not an authorized package maintainer")
+    manifest = release_manifest(repository, package_id, current.get("version"))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / f"{package_id}.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -145,11 +163,17 @@ def main() -> int:
     scheduled = subparsers.add_parser("poll")
     scheduled.add_argument("--packages-root", type=Path, required=True)
     scheduled.add_argument("--output-dir", type=Path, required=True)
+    immediate = subparsers.add_parser("update")
+    immediate.add_argument("--event", type=Path, required=True)
+    immediate.add_argument("--packages-root", type=Path, required=True)
+    immediate.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "initial":
         initial(args.event, args.output)
-    else:
+    elif args.command == "poll":
         poll(args.packages_root, args.output_dir)
+    else:
+        update(args.event, args.packages_root, args.output_dir)
     return 0
 
 
