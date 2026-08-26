@@ -1,16 +1,13 @@
 {
   "archiveRoot": "vanahub-test-addon",
   "author": "Sel",
-  "changelog": "**Full Changelog**: https://github.com/Hildaware/vanahub-test-addon/compare/v0.1.1...v0.1.3",
-  "compressedSize": 396,
-  "categories": [
-    "development-tools"
-  ],
+  "changelog": "Catalog metadata: SHA-256 `3849c488e59398e7bc23e2e9045c66d48bfaa06853cd4ea0021dcc18faa83668`; compressed size `511` bytes.\n\n**Full Changelog**: https://github.com/Hildaware/vanahub-test-addon/compare/v0.1.3...v0.1.4",
+  "compressedSize": 397,
   "declaredCapabilities": [
     "chat-output"
   ],
   "description": "It's a test addon.",
-  "downloadUrl": "https://github.com/Hildaware/vanahub-test-addon/releases/download/v0.1.3/vanahub-test-addon-0.1.3.zip",
+  "downloadUrl": "https://github.com/Hildaware/vanahub-test-addon/releases/download/v0.1.4/vanahub-test-addon-0.1.4.zip",
   "entrypoint": "vanahub-test-addon.lua",
   "id": "vanahub-test-addon",
   "maintainers": [
@@ -19,7 +16,7 @@
   ],
   "name": "Vanahub Test Addon",
   "schemaVersion": 1,
-  "sha256": "8dd06759da220d8691c5bc59acd5c2a3c71bbf869a35b23bf4d764d9fda0a6e0",
+  "sha256": "552c0e4e407554cddf773c1c19bf5d0d57c40c2d1ef025e504f758f1025823c0",
   "sourceUrl": "https://github.com/Hildaware/vanahub-test-addon",
-  "version": "0.1.3"
+  "version": "0.1.4"
 }
