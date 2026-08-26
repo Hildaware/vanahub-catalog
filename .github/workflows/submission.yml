@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: a98faa0583380ccc2cfde4072453bcd7b61a7119
+          ref: 36eec4394432e1f6f565bc1d5fe5bf14b17edaf8
           path: product
           persist-credentials: false
       - name: Cache dependencies and ML models
