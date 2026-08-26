@@ -20,7 +20,10 @@ Before enabling workflows:
    runs provide a link for opening the validated branch as a PR. The workflow
    creates its tracking label automatically.
 
-Routine package PRs may change exactly one `packages/<id>/manifest.json`.
+Routine maintainer PRs may change exactly one `packages/<id>/manifest.json`.
+Trusted catalog automation may additionally add up to ten normalized,
+content-addressed JPEGs beneath `media/<id>/`. Admission verifies every media
+filename against its bytes and requires the package manifest to reference it.
 Workflow, policy, schema, revocation, and signing changes require catalog
 administrator review.
 
@@ -29,8 +32,10 @@ administrator review.
 First admission begins with the **Submit an addon to VanaHub** issue form. The
 issue author must be authorized in the public source repository's
 `.vanahub.json`. Catalog Actions discover the newest stable GitHub Release,
-re-scan its normalized artifact, and open the ordinary one-manifest admission
-PR.
+re-scan its normalized artifact, copy screenshot URLs or Publisher-staged R2
+uploads into immutable catalog media, and open the admission PR. The issue
+receives a screenshot preview before the PR is created. GitHub Pages, rather
+than the author ZIP or temporary upload bucket, is the permanent media host.
 
 After admission, `discover.yml` checks registered repositories every 30
 minutes. A newer stable release is eligible only when it contains

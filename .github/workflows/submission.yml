@@ -31,12 +31,38 @@ jobs:
           ref: a98faa0583380ccc2cfde4072453bcd7b61a7119
           path: product
           persist-credentials: false
+      - name: Cache dependencies and ML models
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+          key: ${{ runner.os }}-media-${{ hashFiles('requirements-media.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-media-
+      - name: Install pinned media decoder
+        run: python3 -m pip install --requirement requirements-media.txt
       - name: Discover authorized release
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/discover_releases.py initial --event "$GITHUB_EVENT_PATH" --output candidate.json
       - name: Validate candidate
         run: python3 product/tools/catalog_scan.py candidate.json --output scan-report.json
+      - name: Normalize catalog screenshots
+        env:
+          VH_MEDIA_BASE: https://hildaware.github.io/vanahub-catalog/media
+        run: |
+          python3 scripts/process_media.py candidate.json candidate.json \
+            --media-root media --public-base "$VH_MEDIA_BASE" \
+            --preview-output screenshot-preview.md
+      - name: Show screenshot preview
+        if: hashFiles('screenshot-preview.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if test -s screenshot-preview.md; then
+            gh issue comment "${{ github.event.issue.number }}" --body-file screenshot-preview.md
+          fi
       - name: Open audited manifest PR
         id: pr
         env:
@@ -52,6 +78,7 @@ jobs:
           mkdir -p "packages/$id"
           cp candidate.json "packages/$id/manifest.json"
           git add "packages/$id/manifest.json"
+          if test -d "media/$id"; then git add "media/$id"; fi
           if git diff --cached --quiet; then
             gh issue comment "${{ github.event.issue.number }}" --body "The catalog already contains $id $version. Future stable releases will be discovered automatically."
             exit 0

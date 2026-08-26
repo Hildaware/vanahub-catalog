@@ -28,6 +28,17 @@ jobs:
           ref: a98faa0583380ccc2cfde4072453bcd7b61a7119
           path: product
           persist-credentials: false
+      - name: Cache dependencies and ML models
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+          key: ${{ runner.os }}-media-${{ hashFiles('requirements-media.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-media-
+      - name: Install pinned media decoder
+        run: python3 -m pip install --requirement requirements-media.txt
       - name: Discover newer releases
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -37,6 +48,11 @@ jobs:
           shopt -s nullglob
           for candidate in candidates/*.json; do
             python3 product/tools/catalog_scan.py "$candidate" --output scan-report.json
+            id=$(jq -r .id "$candidate")
+            python3 scripts/process_media.py "$candidate" "$candidate" \
+              --media-root media \
+              --public-base https://hildaware.github.io/vanahub-catalog/media \
+              --previous-manifest "packages/$id/manifest.json"
           done
       - name: Open audited update PRs
         env:
@@ -55,6 +71,7 @@ jobs:
             mkdir -p "packages/$id"
             cp "$candidate" "packages/$id/manifest.json"
             git add "packages/$id/manifest.json"
+            if test -d "media/$id"; then git add "media/$id"; fi
             git commit -m "Publish $id $version"
             git push --force-with-lease --set-upstream origin "$branch"
             url=$(gh pr create --base main --head "$branch" --title "Publish $id $version" --body "Automatically discovered from an authorized stable GitHub Release.")

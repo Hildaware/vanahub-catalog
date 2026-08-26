@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import importlib.util
 import sys
 import unittest
@@ -28,6 +29,42 @@ class ExtractManifestTests(unittest.TestCase):
                 "id": "vanahub",
                 "sourceUrl": "https://github.com/attacker/vanahub",
             })
+
+    def test_allows_only_automated_content_addressed_package_media(self):
+        digest = "a" * 64
+        manifest, media = extract.constrained_paths(
+            [
+                "packages/sample/manifest.json",
+                f"media/sample/{digest}.jpg",
+            ],
+            True,
+        )
+        self.assertEqual(manifest, "packages/sample/manifest.json")
+        self.assertEqual(media, [f"media/sample/{digest}.jpg"])
+        with self.assertRaisesRegex(ValueError, "may not add"):
+            extract.constrained_paths(
+                ["packages/sample/manifest.json", f"media/sample/{digest}.jpg"],
+                False,
+            )
+
+    def test_media_bytes_must_match_filename_and_manifest(self):
+        content = b"\xff\xd8catalog-jpeg\xff\xd9"
+        digest = hashlib.sha256(content).hexdigest()
+        path = f"media/sample/{digest}.jpg"
+        manifest = {
+            "id": "sample",
+            "screenshots": [f"https://catalog.example/media/sample/{digest}.jpg"],
+        }
+        extract.validate_media(
+            path, content, manifest, "https://catalog.example/media"
+        )
+        with self.assertRaisesRegex(ValueError, "SHA-256"):
+            extract.validate_media(
+                f"media/sample/{'a' * 64}.jpg",
+                content,
+                manifest,
+                "https://catalog.example/media",
+            )
 
 
 if __name__ == "__main__":

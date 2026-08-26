@@ -37,11 +37,12 @@ jobs:
           done
           python3 product/tools/build_catalog.py catalog/packages public \
             --revocations catalog/revocations.json --unsigned
+          if test -d catalog/media; then cp -R catalog/media public/media; fi
           test -s public/index.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: unsigned-catalog
-          path: public/index.json
+          path: public
           if-no-files-found: error
           retention-days: 1
 

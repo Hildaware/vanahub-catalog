@@ -67,7 +67,9 @@ jobs:
         run: |
           set -euo pipefail
           gh api --paginate "repos/${VH_REPOSITORY}/pulls/${VH_PR}/files" > changed.json
-          python3 catalog-base/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json
+          media=()
+          if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then media+=(--allow-media); fi
+          python3 catalog-base/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json "${media[@]}"
       - name: Verify and scan
         id: scan
         if: steps.context.outputs.automated != 'true'
