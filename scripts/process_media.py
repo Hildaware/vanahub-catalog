@@ -9,6 +9,7 @@ import http.client
 import io
 import ipaddress
 import json
+import re
 import socket
 import ssl
 import urllib.parse
@@ -22,9 +23,15 @@ MAX_PIXELS = 40_000_000
 MAX_OUTPUT = 750 * 1024
 MAX_DIMENSIONS = (1280, 720)
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
+DEFAULT_STAGING_BASE = "https://vanahub-screenshot-upload.hildaware.workers.dev"
+NSFW_MODEL_REVISION = "04367978d3474804ab1a00a9bd6548b741764069"
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 
 class NSFWImageError(ValueError):
+    pass
+
+
+class StagedMediaExpired(ValueError):
     pass
 
 _nsfw_classifier = None
@@ -32,19 +39,27 @@ _nsfw_classifier = None
 def check_nsfw(image: Image.Image) -> None:
     global _nsfw_classifier
     if _nsfw_classifier is None:
-        try:
-            from transformers import pipeline
-            import os
-            # Prevent huggingface from spamming stdout
-            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
-            _nsfw_classifier = pipeline("image-classification", model="Falconsai/nsfw_image_detection")
-        except ImportError:
-            return
-    if _nsfw_classifier:
-        results = _nsfw_classifier(image)
-        nsfw_score = next((item["score"] for item in results if item["label"] == "nsfw"), 0.0)
-        if nsfw_score > 0.8:
-            raise NSFWImageError(f"Image flagged for inappropriate content (NSFW score: {nsfw_score:.2f})")
+        from transformers import pipeline
+        import os
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+        _nsfw_classifier = pipeline(
+            "image-classification",
+            model="Falconsai/nsfw_image_detection",
+            revision=NSFW_MODEL_REVISION,
+            local_files_only=os.environ.get("VANAHUB_NSFW_OFFLINE") == "1",
+            model_kwargs={"use_safetensors": True},
+        )
+    results = _nsfw_classifier(image)
+    scores = {
+        str(item.get("label", "")).casefold(): float(item.get("score", 0.0))
+        for item in results
+    }
+    if "nsfw" not in scores:
+        raise RuntimeError("moderation model did not return the expected nsfw label")
+    if scores["nsfw"] > 0.8:
+        raise NSFWImageError(
+            f"image was rejected by content moderation (score: {scores['nsfw']:.2f})"
+        )
 
 def public_addresses(hostname: str) -> list[str]:
     try:
@@ -67,6 +82,8 @@ def safe_url(value: str) -> str:
     parsed = urllib.parse.urlparse(value)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError("screenshots must use credential-free HTTPS URLs")
+    if parsed.port not in (None, 443):
+        raise ValueError("media URLs must use the standard HTTPS port")
     if not public_addresses(parsed.hostname):
         raise ValueError("screenshot host must resolve exclusively to public addresses")
     return value
@@ -106,10 +123,19 @@ def download(url: str) -> bytes:
                 current = urllib.parse.urljoin(current, location)
                 continue
             if response.status < 200 or response.status >= 300:
+                if response.status in (404, 410):
+                    raise StagedMediaExpired("staged media has expired")
                 raise ValueError(f"screenshot download returned HTTP {response.status}")
             declared = response.getheader("Content-Length")
-            if declared and int(declared) > MAX_DOWNLOAD:
-                raise ValueError("screenshot exceeds the 10 MB download limit")
+            if declared:
+                try:
+                    declared_length = int(declared)
+                except ValueError as exc:
+                    raise ValueError("media response has an invalid Content-Length") from exc
+                if declared_length < 0:
+                    raise ValueError("media response has an invalid Content-Length")
+                if declared_length > MAX_DOWNLOAD:
+                    raise ValueError("screenshot exceeds the 10 MB download limit")
             data = response.read(MAX_DOWNLOAD + 1)
             if len(data) > MAX_DOWNLOAD:
                 raise ValueError("screenshot exceeds the 10 MB download limit")
@@ -165,9 +191,63 @@ def is_catalog_media(url: str, public_base: str, package_id: str) -> bool:
     if not url.startswith(prefix):
         return False
     name = url.removeprefix(prefix)
-    if name == "icon.jpg":
-        return True
     return len(name) == 68 and name.endswith(".jpg") and all(character in "0123456789abcdef" for character in name[:-4])
+
+
+def is_staged_media(url: str, staging_base: str) -> bool:
+    prefix = f"{staging_base.rstrip('/')}/pending/"
+    if not url.startswith(prefix):
+        return False
+    relative = url.removeprefix(prefix)
+    return bool(
+        re.fullmatch(
+            r"[0-9a-f-]{36}/[a-f0-9]{64}\.(?:jpg|png|webp)", relative
+        )
+    )
+
+
+def store_media(encoded: bytes, output_directory: Path, public_base: str, package_id: str) -> str:
+    digest = hashlib.sha256(encoded).hexdigest()
+    destination = output_directory / f"{digest}.jpg"
+    if destination.exists() and destination.read_bytes() != encoded:
+        raise ValueError("catalog media hash collision")
+    destination.write_bytes(encoded)
+    return f"{public_base.rstrip('/')}/{package_id}/{digest}.jpg"
+
+
+def process_sources(
+    values: list[str],
+    previous: list[str],
+    output_directory: Path,
+    public_base: str,
+    staging_base: str,
+    package_id: str,
+) -> list[str]:
+    if all(isinstance(url, str) and is_catalog_media(url, public_base, package_id) for url in values):
+        return list(dict.fromkeys(values))
+    if any(not isinstance(url, str) for url in values):
+        raise ValueError("media entries must be URLs")
+    if any(not is_staged_media(url, staging_base) for url in values):
+        if previous and all(is_catalog_media(url, public_base, package_id) for url in previous):
+            print(f"Preserving grandfathered catalog media for {package_id}")
+            return previous
+        raise ValueError("new media must be uploaded through VanaHub Publisher")
+
+    output_directory.mkdir(parents=True, exist_ok=True)
+    canonical: list[str] = []
+    expired = 0
+    for url in values:
+        try:
+            canonical.append(
+                store_media(canonical_jpeg(download(url)), output_directory, public_base, package_id)
+            )
+        except StagedMediaExpired:
+            expired += 1
+    if expired == len(values) and previous:
+        return previous
+    if expired:
+        raise ValueError("some staged media expired; re-upload the complete media set")
+    return list(dict.fromkeys(canonical))
 
 
 def process(
@@ -175,81 +255,36 @@ def process(
     media_root: Path,
     public_base: str,
     previous: dict | None = None,
+    staging_base: str = DEFAULT_STAGING_BASE,
 ) -> dict:
     package_id = manifest.get("id", "")
     output_directory = media_root / package_id
 
     icon_url = manifest.get("iconUrl")
-    if icon_url and isinstance(icon_url, str):
-        if is_catalog_media(icon_url, public_base, package_id) and icon_url.endswith("/icon.jpg"):
-            pass
-        else:
-            output_directory.mkdir(parents=True, exist_ok=True)
-            try:
-                encoded = canonical_jpeg(download(icon_url))
-                destination = output_directory / "icon.jpg"
-                destination.write_bytes(encoded)
-                manifest["iconUrl"] = f"{public_base.rstrip('/')}/{package_id}/icon.jpg"
-            except NSFWImageError as e:
-                print(f"Discarding icon for {package_id}: {e}")
-                del manifest["iconUrl"]
+    if icon_url is not None:
+        previous_icon = (previous or {}).get("iconUrl")
+        manifest["iconUrl"] = process_sources(
+            [icon_url],
+            [previous_icon] if isinstance(previous_icon, str) else [],
+            output_directory,
+            public_base,
+            staging_base,
+            package_id,
+        )[0]
 
     screenshots = manifest.get("screenshots")
     if not screenshots:
         return manifest
 
-    previous_screenshots = (previous or {}).get("screenshots", [])
-    if previous_screenshots and all(
-        isinstance(url, str) and is_catalog_media(url, public_base, package_id)
-        for url in previous_screenshots
-    ):
-        manifest["screenshots"] = previous_screenshots
-        return manifest
-
-    output_directory.mkdir(parents=True, exist_ok=True)
-    canonical = []
-    for url in screenshots:
-        if not isinstance(url, str):
-            raise ValueError("screenshot entries must be URLs")
-        if is_catalog_media(url, public_base, package_id):
-            canonical.append(url)
-            continue
-        try:
-            encoded = canonical_jpeg(download(url))
-        except NSFWImageError as e:
-            print(f"Discarding screenshot for {package_id}: {e}")
-            continue
-            
-        digest = hashlib.sha256(encoded).hexdigest()
-        destination = output_directory / f"{digest}.jpg"
-        if destination.exists() and destination.read_bytes() != encoded:
-            raise ValueError("catalog media hash collision")
-        destination.write_bytes(encoded)
-        canonical.append(f"{public_base.rstrip('/')}/{package_id}/{digest}.jpg")
-    manifest["screenshots"] = list(dict.fromkeys(canonical))
+    manifest["screenshots"] = process_sources(
+        screenshots,
+        (previous or {}).get("screenshots", []),
+        output_directory,
+        public_base,
+        staging_base,
+        package_id,
+    )
     return manifest
-
-
-def preview_markdown(manifest: dict) -> str:
-    lines = ["## Media preview", ""]
-    icon_url = manifest.get("iconUrl")
-    if icon_url:
-        escaped_icon = str(icon_url).replace(">", "%3E")
-        lines.append(f"**Icon:**")
-        lines.append(f"![Icon](<{escaped_icon}>)")
-        lines.append("")
-    
-    screenshots = manifest.get("screenshots", [])
-    if screenshots:
-        for index, url in enumerate(screenshots, 1):
-            escaped = str(url).replace(">", "%3E")
-            lines.append(f"![Screenshot {index}](<{escaped}>)")
-            lines.append("")
-    
-    if len(lines) > 2:
-        lines.append("These images will be validated and normalized before catalog publication.")
-        return "\n".join(lines) + "\n"
-    return ""
 
 
 def main() -> int:
@@ -258,16 +293,14 @@ def main() -> int:
     parser.add_argument("output", type=Path)
     parser.add_argument("--media-root", type=Path, required=True)
     parser.add_argument("--public-base", required=True)
+    parser.add_argument("--staging-base", default=DEFAULT_STAGING_BASE)
     parser.add_argument("--previous-manifest", type=Path)
-    parser.add_argument("--preview-output", type=Path)
     args = parser.parse_args()
     manifest = json.loads(args.input.read_text(encoding="utf-8"))
-    if args.preview_output:
-        args.preview_output.write_text(preview_markdown(manifest), encoding="utf-8")
     previous = None
     if args.previous_manifest and args.previous_manifest.exists():
         previous = json.loads(args.previous_manifest.read_text(encoding="utf-8"))
-    result = process(manifest, args.media_root, args.public_base, previous)
+    result = process(manifest, args.media_root, args.public_base, previous, args.staging_base)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 0
 

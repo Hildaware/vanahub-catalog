@@ -4,65 +4,116 @@ on:
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
+  issues:
+    types: [opened, reopened]
 
-permissions:
-  actions: write
-  contents: write
-  pull-requests: write
-
+permissions: {}
 concurrency:
   group: catalog-discovery
   cancel-in-progress: false
 
 jobs:
-  discover:
+  validate:
+    if: github.event_name != 'issues' || (startsWith(github.event.issue.title, 'Check update:') && contains(github.event.issue.body, '### Repository URL') && contains(github.event.issue.body, '### Package ID'))
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
           ref: 36eec4394432e1f6f565bc1d5fe5bf14b17edaf8
           path: product
           persist-credentials: false
-      - name: Cache dependencies and ML models
-        uses: actions/cache@v4
+      - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
           path: |
             ~/.cache/pip
             ~/.cache/huggingface
-          key: ${{ runner.os }}-media-${{ hashFiles('requirements-media.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-media-
-      - name: Install pinned media decoder
-        run: python3 -m pip install --requirement requirements-media.txt
-      - name: Discover newer releases
+          key: ${{ runner.os }}-media-${{ hashFiles('requirements-media.txt', 'scripts/process_media.py') }}
+      - run: python3 -m pip install --require-hashes --requirement requirements-media.txt
+      - name: Discover, scan, normalize, and moderate updates
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 scripts/discover_releases.py poll --packages-root packages --output-dir candidates
-      - name: Scan discovered artifacts without a write token
         run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "issues" ]]; then
+            python3 scripts/discover_releases.py update --event "$GITHUB_EVENT_PATH" --packages-root packages --output-dir candidates
+          else
+            python3 scripts/discover_releases.py poll --packages-root packages --output-dir candidates
+          fi
+          mkdir -p cleanup
           shopt -s nullglob
           for candidate in candidates/*.json; do
-            python3 product/tools/catalog_scan.py "$candidate" --output scan-report.json
             id=$(jq -r .id "$candidate")
+            cp "$candidate" "${candidate%.json}.source.json"
+            python3 product/tools/catalog_scan.py "$candidate" --output scan-report.json
             python3 scripts/process_media.py "$candidate" "$candidate" \
-              --media-root media \
+              --media-root normalized-media \
               --public-base https://hildaware.github.io/vanahub-catalog/media \
               --previous-manifest "packages/$id/manifest.json"
+            python3 - "$id" "${candidate%.json}.source.json" <<'PY'
+          import json, sys
+          package_id, path = sys.argv[1:]
+          source = json.load(open(path, encoding='utf-8'))
+          base = 'https://vanahub-screenshot-upload.hildaware.workers.dev/'
+          urls = [source.get('iconUrl'), *source.get('screenshots', [])]
+          keys = [url.removeprefix(base) for url in urls if isinstance(url, str) and url.startswith(base)]
+          json.dump({'keys': keys}, open(f'cleanup/{package_id}.json', 'w', encoding='utf-8'))
+          PY
           done
+          rm -f candidates/*.source.json
+          find candidates cleanup normalized-media -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum > validated.sha256 || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: validated-discovery-${{ github.run_id }}
+          path: |
+            candidates
+            cleanup
+            normalized-media
+            validated.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+  write:
+    needs: validate
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: validated-discovery-${{ github.run_id }}
+          path: validated
       - name: Open audited update PRs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          cd validated
+          if test -s validated.sha256; then sha256sum --check validated.sha256; fi
+          cd ..
           gh auth setup-git
           shopt -s nullglob
-          for candidate in candidates/*.json; do
+          for candidate in validated/candidates/*.json; do
             id=$(jq -r .id "$candidate")
             version=$(jq -r .version "$candidate")
+            [[ "$id" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]]
             branch="automation/${id}/${version}"
             if gh pr list --state open --head "$branch" --json number --jq 'length > 0' | grep -q true; then continue; fi
             git config user.name 'github-actions[bot]'
@@ -70,12 +121,45 @@ jobs:
             git switch -C "$branch" origin/main
             mkdir -p "packages/$id"
             cp "$candidate" "packages/$id/manifest.json"
+            if test -d "validated/normalized-media/$id"; then mkdir -p "media/$id"; cp validated/normalized-media/$id/*.jpg "media/$id/"; fi
             git add "packages/$id/manifest.json"
             if test -d "media/$id"; then git add "media/$id"; fi
+            if git diff --cached --quiet; then git switch main; continue; fi
             git commit -m "Publish $id $version"
+            head_sha=$(git rev-parse HEAD)
             git push --force-with-lease --set-upstream origin "$branch"
             url=$(gh pr create --base main --head "$branch" --title "Publish $id $version" --body "Automatically discovered from an authorized stable GitHub Release.")
             number=$(gh pr view "$url" --json number --jq .number)
-            gh workflow run admission.yml --ref main -f pr_number="$number"
+            if [[ "${{ github.event_name }}" == "issues" ]]; then
+              gh issue comment "${{ github.event.issue.number }}" --body "Prepared catalog PR #${number}. Admission is re-verifying the release and normalized media."
+            fi
+            gh workflow run admission.yml --ref main -f pr_number="$number" -f expected_head_sha="$head_sha"
             git switch main
           done
+      - name: Best-effort staged media cleanup
+        continue-on-error: true
+        env:
+          VH_CLEANUP_SECRET: ${{ secrets.VANAHUB_MEDIA_CLEANUP_SECRET }}
+          VH_CLEANUP_URL: ${{ vars.VANAHUB_SCREENSHOT_UPLOAD_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$VH_CLEANUP_SECRET"
+          shopt -s nullglob
+          for request in validated/cleanup/*.json; do
+            test "$(jq '.keys | length' "$request")" -eq 0 && continue
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer $VH_CLEANUP_SECRET" \
+              -H 'Content-Type: application/json' --data @"$request" \
+              "${VH_CLEANUP_URL%/}/cleanup"
+          done
+
+  notify-failure:
+    needs: validate
+    if: always() && github.event_name == 'issues' && needs.validate.result == 'failure'
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment "${{ github.event.issue.number }}" --body "Update discovery, validation, or media moderation failed. Review the workflow log and publish or upload corrected inputs before reopening this issue."

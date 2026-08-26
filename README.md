@@ -19,11 +19,17 @@ Before enabling workflows:
    requests** for zero-click submission PRs. Otherwise, successful submission
    runs provide a link for opening the validated branch as a PR. The workflow
    creates its tracking label automatically.
+7. Set the Actions variable `VANAHUB_SCREENSHOT_UPLOAD_URL` to the upload
+   Worker origin and set the Actions secret `VANAHUB_MEDIA_CLEANUP_SECRET` to
+   the same random value as the Worker's `CLEANUP_SECRET`. Cleanup is
+   best-effort; also configure the R2 bucket to expire `pending/` objects after
+   30 days as the recovery path for interrupted runs.
 
 Routine maintainer PRs may change exactly one `packages/<id>/manifest.json`.
-Trusted catalog automation may additionally add up to ten normalized,
+Trusted catalog automation may additionally add up to eleven normalized,
 content-addressed JPEGs beneath `media/<id>/`. Admission verifies every media
-filename against its bytes and requires the package manifest to reference it.
+filename against its fully decoded bytes and requires `iconUrl` or `screenshots`
+to reference it.
 Workflow, policy, schema, revocation, and signing changes require catalog
 administrator review.
 
@@ -32,10 +38,12 @@ administrator review.
 First admission begins with the **Submit an addon to VanaHub** issue form. The
 issue author must be authorized in the public source repository's
 `.vanahub.json`. Catalog Actions discover the newest stable GitHub Release,
-re-scan its normalized artifact, copy screenshot URLs or Publisher-staged R2
-uploads into immutable catalog media, and open the admission PR. The issue
-receives a screenshot preview before the PR is created. GitHub Pages, rather
+re-scan its normalized artifact, copy Publisher-staged R2 uploads into immutable
+catalog media, and open the admission PR. The issue receives a preview of
+normalized bytes pinned to the automation commit. GitHub Pages, rather
 than the author ZIP or temporary upload bucket, is the permanent media host.
+New external image URLs are not accepted; already-normalized media from existing
+packages is preserved until an author replaces it through Publisher.
 
 After admission, `discover.yml` checks registered repositories every 30
 minutes. A newer stable release is eligible only when it contains
