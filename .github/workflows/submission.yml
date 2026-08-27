@@ -53,15 +53,20 @@ jobs:
           python3 scripts/process_media.py candidate.json candidate.json \
             --media-root normalized-media \
             --public-base https://hildaware.github.io/vanahub-catalog/media
-          python3 - <<'PY'
-          import json
+          python3 - "${{ github.event.issue.number }}" <<'PY'
+          import json, sys
           source = json.load(open('source-candidate.json', encoding='utf-8'))
           base = 'https://vanahub-screenshot-upload.hildaware.workers.dev/'
           urls = [source.get('iconUrl'), *source.get('screenshots', [])]
           keys = [url.removeprefix(base) for url in urls if isinstance(url, str) and url.startswith(base)]
           json.dump({'keys': keys}, open('cleanup.json', 'w', encoding='utf-8'))
+          json.dump({
+              'packageId': source['id'],
+              'schemaVersion': 1,
+              'submissionIssue': int(sys.argv[1]),
+          }, open('provenance.json', 'w', encoding='utf-8'), indent=2, sort_keys=True)
           PY
-          sha256sum candidate.json cleanup.json > validated.sha256
+          sha256sum candidate.json cleanup.json provenance.json scan-report.json > validated.sha256
           if test -d normalized-media; then find normalized-media -type f -print0 | sort -z | xargs -0 sha256sum >> validated.sha256; fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -70,6 +75,7 @@ jobs:
             candidate.json
             cleanup.json
             normalized-media
+            provenance.json
             scan-report.json
             validated.sha256
           if-no-files-found: error
@@ -97,6 +103,7 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cd validated
@@ -105,6 +112,9 @@ jobs:
           version=$(jq -r .version candidate.json)
           [[ "$id" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]]
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]
+          test "$(jq -r .schemaVersion provenance.json)" = 1
+          test "$(jq -r .packageId provenance.json)" = "$id"
+          [[ "$(jq -r .submissionIssue provenance.json)" =~ ^[1-9][0-9]*$ ]]
           if test -d normalized-media; then
             test "$(find normalized-media -type f | wc -l | tr -d ' ')" -le 11
             find normalized-media -type f -not -path "normalized-media/$id/*" -print -quit | grep -q . && exit 1 || true
@@ -119,8 +129,9 @@ jobs:
           git switch -C "$branch" origin/main
           mkdir -p "packages/$id"
           cp validated/candidate.json "packages/$id/manifest.json"
+          cp validated/provenance.json "packages/$id/provenance.json"
           if test -d "validated/normalized-media/$id"; then mkdir -p "media/$id"; cp validated/normalized-media/$id/*.jpg "media/$id/"; fi
-          git add "packages/$id/manifest.json"
+          git add "packages/$id/manifest.json" "packages/$id/provenance.json"
           if test -d "media/$id"; then git add "media/$id"; fi
           if git diff --cached --quiet; then
             gh issue comment "${{ github.event.issue.number }}" --body "The catalog already contains $id $version. Future stable releases will be discovered automatically."
@@ -140,6 +151,10 @@ jobs:
             --raw-base "$raw_base"
           if test -s preview.md; then gh issue comment "${{ github.event.issue.number }}" --body-file preview.md; fi
           gh issue comment "${{ github.event.issue.number }}" --body "Prepared catalog PR #${number}. Admission will re-verify the release and normalized media before merge."
+          python3 scripts/post_scan_report.py validated/scan-report.json validated/provenance.json \
+            --repository "${{ github.repository }}" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --pull-request "$number"
           echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
       - name: Best-effort staged media cleanup

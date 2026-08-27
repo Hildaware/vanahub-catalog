@@ -26,8 +26,10 @@ Before enabling workflows:
    30 days as the recovery path for interrupted runs.
 
 Routine maintainer PRs may change exactly one `packages/<id>/manifest.json`.
-Trusted catalog automation may additionally add up to eleven normalized,
-content-addressed JPEGs beneath `media/<id>/`. Admission verifies every media
+Trusted initial-admission automation also records the originating issue in
+`packages/<id>/provenance.json`, and trusted catalog automation may add up to
+eleven normalized, content-addressed JPEGs beneath `media/<id>/`. Admission
+validates package provenance, verifies every media
 filename against its fully decoded bytes and requires `iconUrl` or `screenshots`
 to reference it.
 Workflow, policy, schema, revocation, and signing changes require catalog
@@ -50,6 +52,9 @@ minutes. A newer stable release is eligible only when it contains
 `vanahub-manifest.json` and the exact normalized artifact named by that
 manifest. Drafts and prereleases are ignored. Discovered updates still pass
 through the same admission and auto-merge checks as maintainer-authored PRs.
+Each distinct scan result is posted once to the originating submission issue.
+A rejected release reopens that issue for maintainer attention, even when the
+issue was previously closed.
 
 `packages/example/manifest.example.json` is documentation only. Copy it to a
 new `packages/<real-id>/manifest.json` and replace every placeholder when

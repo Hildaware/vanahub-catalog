@@ -23,6 +23,7 @@ jobs:
       accepted: ${{ steps.scan.outcome == 'success' || steps.automated_scan.outcome == 'success' }}
       pr_number: ${{ steps.context.outputs.pr_number }}
       head_sha: ${{ steps.context.outputs.head_sha }}
+      report_available: ${{ steps.report.outputs.available }}
     steps:
       - name: Resolve pull request context
         id: context
@@ -83,7 +84,7 @@ jobs:
           python3 -m pip install --require-hashes --requirement catalog-base/requirements-image.txt
           gh api --paginate "repos/${VH_REPOSITORY}/pulls/${VH_PR}/files" > changed.json
           media=()
-          if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then media+=(--allow-media); fi
+          if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then media+=(--allow-media --allow-provenance); fi
           python3 catalog-base/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json "${media[@]}"
       - name: Verify and scan
         id: scan
@@ -103,6 +104,17 @@ jobs:
         run: |
           python3 catalog-base/scripts/verify_automated.py manifest.json --previous-root catalog-base/packages
           python3 product/tools/catalog_scan.py manifest.json --output scan-report.json
+      - name: Detect a completed scan report
+        id: report
+        if: always()
+        run: if test -s scan-report.json; then echo "available=true" >> "$GITHUB_OUTPUT"; else echo "available=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always() && steps.report.outputs.available == 'true'
+        with:
+          name: rejected-scan-report
+          path: scan-report.json
+          if-no-files-found: error
+          retention-days: 1
 
   accept:
     needs: scan
@@ -132,3 +144,31 @@ jobs:
           path: admitted-change.json
           if-no-files-found: error
           retention-days: 1
+
+  report-rejection:
+    needs: scan
+    if: always() && needs.scan.result == 'failure' && needs.scan.outputs.report_available == 'true'
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: rejected-scan-report
+          path: rejected
+      - name: Report rejection to the originating submission issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          id=$(jq -r .packageId rejected/scan-report.json)
+          provenance="packages/$id/provenance.json"
+          test -f "$provenance"
+          python3 scripts/post_scan_report.py rejected/scan-report.json "$provenance" \
+            --repository "${{ github.repository }}" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

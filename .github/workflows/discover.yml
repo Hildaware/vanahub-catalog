@@ -49,16 +49,11 @@ jobs:
           else
             python3 scripts/discover_releases.py poll --packages-root packages --output-dir candidates
           fi
-          mkdir -p cleanup
+          mkdir -p cleanup scan-reports
           shopt -s nullglob
           for candidate in candidates/*.json; do
             id=$(jq -r .id "$candidate")
             cp "$candidate" "${candidate%.json}.source.json"
-            python3 product/tools/catalog_scan.py "$candidate" --output scan-report.json
-            python3 scripts/process_media.py "$candidate" "$candidate" \
-              --media-root normalized-media \
-              --public-base https://hildaware.github.io/vanahub-catalog/media \
-              --previous-manifest "packages/$id/manifest.json"
             python3 - "$id" "${candidate%.json}.source.json" <<'PY'
           import json, sys
           package_id, path = sys.argv[1:]
@@ -68,9 +63,50 @@ jobs:
           keys = [url.removeprefix(base) for url in urls if isinstance(url, str) and url.startswith(base)]
           json.dump({'keys': keys}, open(f'cleanup/{package_id}.json', 'w', encoding='utf-8'))
           PY
-          done
+            set +e
+            python3 product/tools/catalog_scan.py "$candidate" --output "scan-reports/$id.json"
+            scan_status=$?
+            set -e
+            if [[ "$scan_status" -eq 1 ]]; then
+              rm -f "$candidate" "${candidate%.json}.source.json"
+              continue
+            fi
+            test "$scan_status" -eq 0
+            set +e
+            python3 scripts/process_media.py "$candidate" "$candidate" \
+              --media-root normalized-media \
+              --public-base https://hildaware.github.io/vanahub-catalog/media \
+              --previous-manifest "packages/$id/manifest.json" > media-error.txt 2>&1
+            media_status=$?
+            set -e
+            if [[ "$media_status" -ne 0 ]]; then
+              python3 - "scan-reports/$id.json" media-error.txt <<'PY'
+          import json, sys
+          report_path, error_path = sys.argv[1:]
+          with open(report_path, encoding='utf-8') as handle:
+              report = json.load(handle)
+          with open(error_path, encoding='utf-8', errors='replace') as handle:
+              message = handle.read()[-4000:].strip() or 'Media normalization or moderation failed.'
+          report['accepted'] = False
+          report.setdefault('findings', []).append({
+              'capability': None,
+              'line': None,
+              'message': message,
+              'path': None,
+              'rule': 'media.processing',
+              'severity': 'error',
+          })
+          with open(report_path, 'w', encoding='utf-8') as handle:
+              json.dump(report, handle, indent=2, sort_keys=True)
+              handle.write('\n')
+          PY
+              rm -f "$candidate" "${candidate%.json}.source.json" media-error.txt
+              continue
+            fi
+            rm -f media-error.txt
+            done
           rm -f candidates/*.source.json
-          find candidates cleanup normalized-media -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum > validated.sha256 || true
+          find candidates cleanup normalized-media scan-reports -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum > validated.sha256 || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: validated-discovery-${{ github.run_id }}
@@ -78,6 +114,7 @@ jobs:
             candidates
             cleanup
             normalized-media
+            scan-reports
             validated.sha256
           if-no-files-found: error
           retention-days: 1
@@ -103,19 +140,25 @@ jobs:
       - name: Open audited update PRs
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cd validated
           if test -s validated.sha256; then sha256sum --check validated.sha256; fi
           cd ..
           gh auth setup-git
+          mkdir -p validated/prepared-prs
           shopt -s nullglob
           for candidate in validated/candidates/*.json; do
             id=$(jq -r .id "$candidate")
             version=$(jq -r .version "$candidate")
             [[ "$id" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]]
             branch="automation/${id}/${version}"
-            if gh pr list --state open --head "$branch" --json number --jq 'length > 0' | grep -q true; then continue; fi
+            number=$(gh pr list --state open --head "$branch" --json number --jq '.[0].number // empty')
+            if [[ -n "$number" ]]; then
+              echo "$number" > "validated/prepared-prs/$id"
+              continue
+            fi
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git switch -C "$branch" origin/main
@@ -130,11 +173,34 @@ jobs:
             git push --force-with-lease --set-upstream origin "$branch"
             url=$(gh pr create --base main --head "$branch" --title "Publish $id $version" --body "Automatically discovered from an authorized stable GitHub Release.")
             number=$(gh pr view "$url" --json number --jq .number)
+            echo "$number" > "validated/prepared-prs/$id"
             if [[ "${{ github.event_name }}" == "issues" ]]; then
               gh issue comment "${{ github.event.issue.number }}" --body "Prepared catalog PR #${number}. Admission is re-verifying the release and normalized media."
             fi
             gh workflow run admission.yml --ref main -f pr_number="$number" -f expected_head_sha="$head_sha"
             git switch main
+          done
+      - name: Report release scans to originating submission issues
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for report in validated/scan-reports/*.json; do
+            id=$(jq -r .packageId "$report")
+            provenance="packages/$id/provenance.json"
+            if [[ ! -f "$provenance" ]]; then
+              echo "warning: $id has no submission provenance; scan report was not posted"
+              continue
+            fi
+            pr=""
+            if [[ -f "validated/prepared-prs/$id" ]]; then pr=$(<"validated/prepared-prs/$id"); fi
+            args=()
+            if [[ -n "$pr" ]]; then args+=(--pull-request "$pr"); fi
+            python3 scripts/post_scan_report.py "$report" "$provenance" \
+              --repository "${{ github.repository }}" \
+              --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              "${args[@]}"
           done
       - name: Best-effort staged media cleanup
         continue-on-error: true

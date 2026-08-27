@@ -35,7 +35,7 @@ class ExtractManifestTests(unittest.TestCase):
 
     def test_allows_only_automated_content_addressed_package_media(self):
         digest = "a" * 64
-        manifest, media = extract.constrained_paths(
+        manifest, media, provenance = extract.constrained_paths(
             [
                 "packages/sample/manifest.json",
                 f"media/sample/{digest}.jpg",
@@ -44,10 +44,31 @@ class ExtractManifestTests(unittest.TestCase):
         )
         self.assertEqual(manifest, "packages/sample/manifest.json")
         self.assertEqual(media, [f"media/sample/{digest}.jpg"])
+        self.assertIsNone(provenance)
         with self.assertRaisesRegex(ValueError, "may not add"):
             extract.constrained_paths(
                 ["packages/sample/manifest.json", f"media/sample/{digest}.jpg"],
                 False,
+            )
+
+    def test_only_automation_may_add_valid_package_provenance(self):
+        path = "packages/sample/provenance.json"
+        manifest, media, provenance = extract.constrained_paths(
+            ["packages/sample/manifest.json", path], True, True
+        )
+        self.assertEqual(manifest, "packages/sample/manifest.json")
+        self.assertEqual(media, [])
+        self.assertEqual(provenance, path)
+        extract.validate_provenance(
+            b'{"schemaVersion":1,"packageId":"sample","submissionIssue":12}',
+            "sample",
+        )
+        with self.assertRaisesRegex(ValueError, "may not change"):
+            extract.constrained_paths(["packages/sample/manifest.json", path], False)
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            extract.validate_provenance(
+                b'{"schemaVersion":1,"packageId":"other","submissionIssue":12}',
+                "sample",
             )
 
     def test_media_bytes_must_match_filename_and_manifest(self):
