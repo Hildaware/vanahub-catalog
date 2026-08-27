@@ -116,6 +116,33 @@ class ProcessMediaTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "expected nsfw label"):
                 self.media.check_nsfw(image)
 
+    def test_moderation_offline_option_is_passed_to_model_loading(self):
+        calls = []
+
+        def pipeline(*args, **kwargs):
+            calls.append((args, kwargs))
+            return lambda image: [
+                {"label": "normal", "score": 0.99},
+                {"label": "nsfw", "score": 0.01},
+            ]
+
+        previous = self.media._nsfw_classifier
+        self.addCleanup(setattr, self.media, "_nsfw_classifier", previous)
+        self.media._nsfw_classifier = None
+        transformers = mock.Mock(pipeline=pipeline)
+        with mock.patch.dict(sys.modules, {"transformers": transformers}), mock.patch.dict(
+            "os.environ", {"VANAHUB_NSFW_OFFLINE": "1"}
+        ):
+            self.media.check_nsfw(Image.new("RGB", (32, 32)))
+
+        self.assertEqual(len(calls), 1)
+        _, kwargs = calls[0]
+        self.assertNotIn("local_files_only", kwargs)
+        self.assertEqual(
+            kwargs["model_kwargs"],
+            {"local_files_only": True, "use_safetensors": True},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

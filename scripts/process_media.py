@@ -46,8 +46,10 @@ def check_nsfw(image: Image.Image) -> None:
             "image-classification",
             model="Falconsai/nsfw_image_detection",
             revision=NSFW_MODEL_REVISION,
-            local_files_only=os.environ.get("VANAHUB_NSFW_OFFLINE") == "1",
-            model_kwargs={"use_safetensors": True},
+            model_kwargs={
+                "local_files_only": os.environ.get("VANAHUB_NSFW_OFFLINE") == "1",
+                "use_safetensors": True,
+            },
         )
     results = _nsfw_classifier(image)
     scores = {
