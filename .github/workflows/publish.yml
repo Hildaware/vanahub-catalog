@@ -17,13 +17,41 @@ jobs:
   validate:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     permissions:
+      actions: read
       contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Allow protected auto-merge to settle
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: github.event_name == 'workflow_run'
-        run: sleep 10
+        with:
+          name: admitted-catalog-change
+          path: admitted
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Wait for the exact admitted change to merge
+        if: github.event_name == 'workflow_run'
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VH_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          pr=$(jq -r .prNumber admitted/admitted-change.json)
+          expected_head=$(jq -r .headSha admitted/admitted-change.json)
+          [[ "$pr" =~ ^[0-9]+$ ]]
+          [[ "$expected_head" =~ ^[0-9a-f]{40}$ ]]
+          for attempt in {1..24}; do
+            details=$(gh pr view "$pr" --repo "$VH_REPOSITORY" --json headRefOid,state)
+            test "$(jq -r .headRefOid <<< "$details")" = "$expected_head"
+            state=$(jq -r .state <<< "$details")
+            if [[ "$state" == "MERGED" ]]; then exit 0; fi
+            if [[ "$state" != "OPEN" ]]; then exit 1; fi
+            sleep 5
+          done
+          echo "admitted PR #$pr did not merge before publication timeout" >&2
+          exit 1
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: main

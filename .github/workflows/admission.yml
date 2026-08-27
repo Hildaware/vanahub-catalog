@@ -119,3 +119,16 @@ jobs:
           VH_PR: ${{ needs.scan.outputs.pr_number }}
           VH_HEAD_SHA: ${{ needs.scan.outputs.head_sha }}
         run: gh pr merge "$VH_PR" --repo "$VH_REPOSITORY" --auto --squash --match-head-commit "$VH_HEAD_SHA"
+      - name: Record the exact admitted change
+        env:
+          VH_PR: ${{ needs.scan.outputs.pr_number }}
+          VH_HEAD_SHA: ${{ needs.scan.outputs.head_sha }}
+        run: |
+          jq -n --argjson pr "$VH_PR" --arg head "$VH_HEAD_SHA" \
+            '{prNumber: $pr, headSha: $head}' > admitted-change.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: admitted-catalog-change
+          path: admitted-change.json
+          if-no-files-found: error
+          retention-days: 1
