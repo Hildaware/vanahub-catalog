@@ -1,0 +1,29 @@
+{
+  "archiveRoot": "vanahub-test-addon",
+  "author": "Sel",
+  "categories": [
+    "chat-communication"
+  ],
+  "changelog": "Catalog metadata: SHA-256 `607cc0207d17f48187d2004e84ec43c5b85f1f1abb9504f63552f4f3215c9a86`; compressed size `511` bytes.\n\n## What's Changed\n* Set up VanaHub publishing for vanahub-test-addon by @Hildaware in https://github.com/Hildaware/vanahub-test-addon/pull/4\n\n\n**Full Changelog**: https://github.com/Hildaware/vanahub-test-addon/compare/v0.1.7...v0.1.8",
+  "compressedSize": 397,
+  "declaredCapabilities": [
+    "chat-output"
+  ],
+  "description": "Stuff happens!",
+  "downloadUrl": "https://github.com/Hildaware/vanahub-test-addon/releases/download/v0.1.8/vanahub-test-addon-0.1.8.zip",
+  "entrypoint": "vanahub-test-addon.lua",
+  "iconUrl": "https://hildaware.github.io/vanahub-catalog/media/vanahub-test-addon/623b76963169caecf4697056ab627b1097eb017a908a11e79c989f09169eaedb.jpg",
+  "id": "vanahub-test-addon",
+  "maintainers": [
+    "bferrari352",
+    "hildaware"
+  ],
+  "name": "Vanahub Test Addon",
+  "schemaVersion": 1,
+  "screenshots": [
+    "https://hildaware.github.io/vanahub-catalog/media/vanahub-test-addon/8fa0302716b43df9a62e03bd09d451180fa44dd05500010dbbf5415fe3804ae6.jpg"
+  ],
+  "sha256": "9807b473a1d0462b9d75403dee14d67c0de1571d76eb97dcd75fb2a16b2a2942",
+  "sourceUrl": "https://github.com/Hildaware/vanahub-test-addon",
+  "version": "0.1.8"
+}
