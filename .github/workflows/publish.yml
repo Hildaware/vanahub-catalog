@@ -4,18 +4,29 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Catalog automation merges with GITHUB_TOKEN, so its resulting push does
+  # not start another workflow. Publish after successful admission as the
+  # explicit handoff for those merges.
+  workflow_run:
+    workflows: [Catalog admission]
+    types: [completed]
 
 permissions: {}
 
 jobs:
   validate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     permissions:
       contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Allow protected auto-merge to settle
+        if: github.event_name == 'workflow_run'
+        run: sleep 10
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: main
           path: catalog
           persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
