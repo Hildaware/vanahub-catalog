@@ -1,6 +1,8 @@
 name: Profile admission
 
 on:
+  pull_request_review:
+    types: [submitted]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -16,6 +18,7 @@ permissions: {}
 
 jobs:
   scan:
+    if: github.event_name == 'workflow_dispatch' || github.event.review.state == 'approved'
     permissions:
       contents: read
       pull-requests: read
@@ -29,11 +32,15 @@ jobs:
         id: context
         env:
           GH_TOKEN: ${{ github.token }}
-          VH_PR: ${{ inputs.pr_number }}
-          VH_EXPECTED_HEAD: ${{ inputs.expected_head_sha }}
+          VH_INPUT_PR: ${{ inputs.pr_number }}
+          VH_EVENT_PR: ${{ github.event.pull_request.number }}
+          VH_INPUT_HEAD: ${{ inputs.expected_head_sha }}
+          VH_REVIEWED_HEAD: ${{ github.event.review.commit_id }}
           VH_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          VH_PR="${VH_INPUT_PR:-$VH_EVENT_PR}"
+          VH_EXPECTED_HEAD="${VH_INPUT_HEAD:-$VH_REVIEWED_HEAD}"
           [[ "$VH_PR" =~ ^[1-9][0-9]*$ ]]
           [[ "$VH_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           details=$(gh pr view "$VH_PR" --repo "$VH_REPOSITORY" --json author,baseRefOid,headRefName,headRefOid,headRepositoryOwner)
@@ -52,7 +59,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: fe5a9d5c81d43c6677b705d2a7950b6a8cac03bf
+          ref: 512f23d8bafdedb90fdcb1381e7ef6921429116f
           path: product
           persist-credentials: false
       - name: Extract and re-scan the exact draft artifact
@@ -82,17 +89,26 @@ jobs:
           cmake --build product/build/profile --target vanahub_settings_scan
           python3 product/tools/profile_scan.py verify manifest.json --archive "artifact/$asset" \
             --output report.json --settings-scanner product/build/profile/vanahub_settings_scan
+          python3 catalog-base/scripts/render_profile_report.py report.json report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
           echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: admitted-profile-report-${{ github.run_id }}
+          path: |
+            report.json
+            report.md
+          if-no-files-found: error
+          retention-days: 7
 
   accept:
     needs: scan
     permissions:
       contents: write
       pull-requests: write
-    environment: profile-publishing
     runs-on: ubuntu-latest
     steps:
-      - name: Publish the sanitized release and enable exact-head merge
+      - name: Enable exact-head merge while keeping the release private
         env:
           GH_TOKEN: ${{ github.token }}
           VH_REPOSITORY: ${{ github.repository }}
@@ -101,10 +117,9 @@ jobs:
           VH_TAG: ${{ needs.scan.outputs.release_tag }}
         run: |
           set -euo pipefail
-          gh release edit "$VH_TAG" --repo "$VH_REPOSITORY" --draft=false --latest=false
           gh pr merge "$VH_PR" --repo "$VH_REPOSITORY" --auto --squash --match-head-commit "$VH_HEAD_SHA"
-          jq -n --argjson pr "$VH_PR" --arg head "$VH_HEAD_SHA" \
-            '{prNumber: $pr, headSha: $head}' > admitted-change.json
+          jq -n --argjson pr "$VH_PR" --arg head "$VH_HEAD_SHA" --arg release "$VH_TAG" \
+            '{prNumber: $pr, headSha: $head, releaseTag: $release}' > admitted-change.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: admitted-catalog-change

@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      profile_release_tag:
+        description: Optional draft profile release to finalize after validating its merged manifest.
+        required: false
+        type: string
   # Catalog automation merges with GITHUB_TOKEN, so its resulting push does
   # not start another workflow. Publish after successful admission as the
   # explicit handoff for those merges.
@@ -22,6 +27,8 @@ jobs:
       pull-requests: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      profile_release_tag: ${{ steps.release.outputs.tag }}
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: github.event_name == 'workflow_run'
@@ -31,6 +38,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
       - name: Wait for the exact admitted change to merge
+        id: admitted
         if: github.event_name == 'workflow_run'
         timeout-minutes: 3
         env:
@@ -60,10 +68,12 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: fe5a9d5c81d43c6677b705d2a7950b6a8cac03bf
+          ref: 512f23d8bafdedb90fdcb1381e7ef6921429116f
           path: product
           persist-credentials: false
       - name: Re-scan and build unsigned index
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cmake -S product -B product/build/profile -DVH_BUILD_ENGINE=OFF -DVH_BUILD_TESTS=OFF
@@ -85,12 +95,56 @@ jobs:
             --revocations catalog/revocations.json --unsigned
           if test -d catalog/media; then cp -R catalog/media public/media; fi
           test -s public/index.json
+      - name: Resolve an admitted profile release
+        id: release
+        env:
+          VH_INPUT_TAG: ${{ inputs.profile_release_tag }}
+          VH_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          tag="$VH_INPUT_TAG"
+          if [[ "$VH_EVENT_NAME" == "workflow_run" ]]; then
+            tag=$(jq -r '.releaseTag // empty' admitted/admitted-change.json)
+          fi
+          if [[ -n "$tag" ]]; then
+            [[ "$tag" =~ ^profile-[a-z0-9][a-z0-9._-]{1,63}-v.+$ ]]
+            matched=false
+            shopt -s nullglob
+            for manifest in catalog/profiles/*/manifest.json; do
+              id=$(jq -r .id "$manifest")
+              version=$(jq -r .version "$manifest")
+              if [[ "$tag" == "profile-$id-v$version" ]]; then matched=true; break; fi
+            done
+            test "$matched" = true
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: unsigned-catalog
           path: public
           if-no-files-found: error
           retention-days: 1
+
+  publish-profile-release:
+    needs: [validate, sign]
+    if: needs.validate.outputs.profile_release_tag != '' && needs.sign.result == 'success'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: profile-publishing
+    steps:
+      - name: Publish the validated profile release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VH_REPOSITORY: ${{ github.repository }}
+          VH_TAG: ${{ needs.validate.outputs.profile_release_tag }}
+        run: |
+          set -euo pipefail
+          details=$(gh release view "$VH_TAG" --repo "$VH_REPOSITORY" --json isDraft,isPrerelease)
+          test "$(jq -r .isDraft <<< "$details")" = true
+          test "$(jq -r .isPrerelease <<< "$details")" = false
+          gh release edit "$VH_TAG" --repo "$VH_REPOSITORY" --draft=false --latest=false
 
   sign:
     needs: validate
@@ -104,7 +158,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: fe5a9d5c81d43c6677b705d2a7950b6a8cac03bf
+          ref: 512f23d8bafdedb90fdcb1381e7ef6921429116f
           path: product
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -124,7 +178,8 @@ jobs:
           path: public
 
   deploy:
-    needs: sign
+    needs: [sign, publish-profile-release]
+    if: always() && needs.sign.result == 'success' && (needs.publish-profile-release.result == 'success' || needs.publish-profile-release.result == 'skipped')
     permissions:
       pages: write
       id-token: write

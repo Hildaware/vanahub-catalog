@@ -25,8 +25,16 @@ Before enabling workflows:
    best-effort; also configure the R2 bucket to expire `pending/` objects after
    30 days as the recovery path for interrupted runs.
 8. Create a protected `profile-publishing` environment and restrict approvals
-   to catalog maintainers. Profile preparation and release publication both
-   pass through this environment.
+   to catalog maintainers. Final release publication passes through this
+   environment after the exact manifest PR is merged and the resulting catalog
+   is validated and signed.
+
+An administrator can verify these repository controls before the first profile
+publication:
+
+```sh
+python3 scripts/profile_repository_preflight.py Hildaware/vanahub-catalog
+```
 
 Routine maintainer PRs may change exactly one `packages/<id>/manifest.json`.
 Trusted initial-admission automation also records the originating issue in
@@ -66,19 +74,33 @@ submitting the first real package.
 ## Maintainer profile publication
 
 Catalog profiles are versioned settings archives; they never contain addon
-binaries. Create a draft GitHub Release tagged
-`profile-<id>-v<semver>` and attach the local export as
-`<id>-<semver>.source.vanahub-profile.zip`. Then run **Prepare catalog
-profile**, enter the public metadata, and confirm that the settings are meant
-for public distribution.
+binaries. The recommended maintainer path validates the local export and live
+repository controls, creates the correctly named draft asset, and starts
+preparation:
+
+```sh
+python3 scripts/submit_profile.py ./my-profile.vanahub-profile.zip \
+  --id starter-profile --version 1.0.0 \
+  --description "Portable starter settings." --author "VanaHub" \
+  --categories quality-of-life --confirm-public
+```
+
+For manual recovery, create a draft GitHub Release tagged
+`profile-<id>-v<semver>`, attach the export as
+`<id>-<semver>.source.vanahub-profile.zip`, and run **Prepare catalog
+profile**. Use `--replace-source` with the helper only when intentionally
+retrying that same draft version.
 
 Preparation applies the same archive and settings-content restrictions as the
 client importer. It redacts supported structured credential values, blocks
 ambiguous or unsafe content, reports possible personal data without printing
-the matched values, and replaces the source asset with a deterministic
-`<id>-<semver>.vanahub-profile.zip`. The generated manifest PR is independently
-revalidated before the sanitized release is made public and merged. Profile
-versions must increase according to SemVer.
+the matched values, and produces a public-safe report before the source asset
+is replaced by a deterministic `<id>-<semver>.vanahub-profile.zip`. The
+generated manifest PR is independently revalidated and must receive its normal
+protected-branch approval. The release remains private until that exact PR is
+merged, the merged catalog is validated, and its next index is signed. Profile
+versions must increase according to SemVer. If finalization is interrupted,
+rerun **Publish signed catalog** with the admitted draft release tag.
 
 Do not publish the first profile until the catalog-profile download client is
 released. Older clients can browse the expanded metadata but cannot restore
