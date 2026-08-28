@@ -8,7 +8,7 @@ on:
   # not start another workflow. Publish after successful admission as the
   # explicit handoff for those merges.
   workflow_run:
-    workflows: [Catalog admission]
+    workflows: [Catalog admission, Profile admission]
     types: [completed]
 
 permissions: {}
@@ -60,12 +60,14 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 36eec4394432e1f6f565bc1d5fe5bf14b17edaf8
+          ref: fe5a9d5c81d43c6677b705d2a7950b6a8cac03bf
           path: product
           persist-credentials: false
       - name: Re-scan and build unsigned index
         run: |
           set -euo pipefail
+          cmake -S product -B product/build/profile -DVH_BUILD_ENGINE=OFF -DVH_BUILD_TESTS=OFF
+          cmake --build product/build/profile --target vanahub_settings_scan
           shopt -s nullglob
           manifests=(catalog/packages/*/manifest.json)
           for manifest in "${manifests[@]}"; do
@@ -73,6 +75,11 @@ jobs:
               test "$(jq -r .sourceUrl "$manifest" | tr '[:upper:]' '[:lower:]' | sed 's:/*$::')" = "https://github.com/hildaware/vanahub"
             fi
             python3 product/tools/catalog_scan.py "$manifest" --output /tmp/scan-report.json
+          done
+          profile_manifests=(catalog/profiles/*/manifest.json)
+          for manifest in "${profile_manifests[@]}"; do
+            python3 product/tools/profile_scan.py verify "$manifest" --output /tmp/profile-report.json \
+              --settings-scanner product/build/profile/vanahub_settings_scan
           done
           python3 product/tools/build_catalog.py catalog/packages public \
             --revocations catalog/revocations.json --unsigned
@@ -97,7 +104,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 36eec4394432e1f6f565bc1d5fe5bf14b17edaf8
+          ref: fe5a9d5c81d43c6677b705d2a7950b6a8cac03bf
           path: product
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

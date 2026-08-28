@@ -1,0 +1,148 @@
+name: Prepare catalog profile
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile_id:
+        description: Lowercase catalog profile ID.
+        required: true
+        type: string
+      version:
+        description: New profile SemVer.
+        required: true
+        type: string
+      description:
+        description: Public profile description.
+        required: true
+        type: string
+      author:
+        description: Public profile author.
+        required: true
+        type: string
+      categories:
+        description: Optional comma-separated catalog categories (maximum three).
+        required: false
+        type: string
+      confirm_public:
+        description: I reviewed these settings and intend to publish a sanitized profile publicly.
+        required: true
+        type: boolean
+
+concurrency:
+  group: profile-${{ inputs.profile_id }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  prepare:
+    if: inputs.confirm_public == true
+    permissions:
+      contents: write
+    environment: profile-publishing
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: Hildaware/vanahub
+          ref: fe5a9d5c81d43c6677b705d2a7950b6a8cac03bf
+          path: product
+          persist-credentials: false
+      - name: Build shared settings scanner
+        run: |
+          cmake -S product -B product/build/profile -DVH_BUILD_ENGINE=OFF -DVH_BUILD_TESTS=OFF
+          cmake --build product/build/profile --target vanahub_settings_scan
+      - name: Validate, sanitize, and replace the draft asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          VH_ID: ${{ inputs.profile_id }}
+          VH_VERSION: ${{ inputs.version }}
+          VH_DESCRIPTION: ${{ inputs.description }}
+          VH_AUTHOR: ${{ inputs.author }}
+          VH_CATEGORIES: ${{ inputs.categories }}
+          VH_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$VH_ID" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]]
+          [[ "$VH_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]
+          tag="profile-$VH_ID-v$VH_VERSION"
+          source_asset="$VH_ID-$VH_VERSION.source.vanahub-profile.zip"
+          canonical_asset="$VH_ID-$VH_VERSION.vanahub-profile.zip"
+          details=$(gh release view "$tag" --repo "$VH_REPOSITORY" --json isDraft,isPrerelease)
+          test "$(jq -r .isDraft <<< "$details")" = true
+          test "$(jq -r .isPrerelease <<< "$details")" = false
+          mkdir -p source validated
+          gh release download "$tag" --repo "$VH_REPOSITORY" --pattern "$source_asset" --dir source
+          download_url="https://github.com/$VH_REPOSITORY/releases/download/$tag/$canonical_asset"
+          python3 product/tools/profile_scan.py prepare \
+            "source/$source_asset" "validated/$canonical_asset" validated/manifest.json \
+            --report validated/report.json --id "$VH_ID" --version "$VH_VERSION" \
+            --description "$VH_DESCRIPTION" --author "$VH_AUTHOR" \
+            --categories "$VH_CATEGORIES" --download-url "$download_url" \
+            --settings-scanner product/build/profile/vanahub_settings_scan
+          gh release upload "$tag" "validated/$canonical_asset" --repo "$VH_REPOSITORY" --clobber
+          mkdir uploaded
+          gh release download "$tag" --repo "$VH_REPOSITORY" --pattern "$canonical_asset" --dir uploaded
+          cmp "validated/$canonical_asset" "uploaded/$canonical_asset"
+          gh release delete-asset "$tag" "$source_asset" --repo "$VH_REPOSITORY" --yes
+          sha256sum validated/manifest.json validated/report.json "validated/$canonical_asset" > validated/validated.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: validated-profile-${{ github.run_id }}
+          path: validated
+          if-no-files-found: error
+          retention-days: 1
+
+  write:
+    needs: prepare
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: validated-profile-${{ github.run_id }}
+          path: validated
+      - name: Open an audited profile PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VH_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd validated
+          sha256sum --check validated.sha256
+          cd ..
+          id=$(jq -r .id validated/manifest.json)
+          version=$(jq -r .version validated/manifest.json)
+          redacted=$(jq -r .redacted validated/report.json)
+          warnings=$(jq -r .warnings validated/report.json)
+          branch="automation/profile/$id/$version"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -C "$branch" origin/main
+          mkdir -p "profiles/$id"
+          cp validated/manifest.json "profiles/$id/manifest.json"
+          git add "profiles/$id/manifest.json"
+          git commit -m "Publish profile $id $version"
+          head_sha=$(git rev-parse HEAD)
+          gh auth setup-git
+          git push --force-with-lease --set-upstream origin "$branch"
+          body="Validated a sanitized profile archive. Redacted values: $redacted. Privacy warnings: $warnings. The admission workflow will re-scan the exact draft asset before publishing it."
+          number=$(gh pr list --repo "$VH_REPOSITORY" --state open --head "$branch" --json number --jq '.[0].number // empty')
+          if [[ -z "$number" ]]; then
+            url=$(gh pr create --repo "$VH_REPOSITORY" --base main --head "$branch" --title "Publish profile $id $version" --body "$body")
+            number=$(gh pr view "$url" --repo "$VH_REPOSITORY" --json number --jq .number)
+          fi
+          gh workflow run profile-admission.yml --ref main -f pr_number="$number" -f expected_head_sha="$head_sha"

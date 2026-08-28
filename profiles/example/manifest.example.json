@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "starter-profile",
+  "name": "Starter Profile",
+  "description": "A preconfigured profile with portable addon settings.",
+  "author": "VanaHub",
+  "version": "1.0.0",
+  "downloadUrl": "https://github.com/Hildaware/vanahub-catalog/releases/download/profile-starter-profile-v1.0.0/starter-profile-1.0.0.vanahub-profile.zip",
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "compressedSize": 12345,
+  "categories": ["quality-of-life"],
+  "addons": [
+    {
+      "id": "example-addon",
+      "autoLoad": true,
+      "settings": true,
+      "source": {"builtin": true}
+    }
+  ]
+}

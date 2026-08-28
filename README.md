@@ -24,6 +24,9 @@ Before enabling workflows:
    the same random value as the Worker's `CLEANUP_SECRET`. Cleanup is
    best-effort; also configure the R2 bucket to expire `pending/` objects after
    30 days as the recovery path for interrupted runs.
+8. Create a protected `profile-publishing` environment and restrict approvals
+   to catalog maintainers. Profile preparation and release publication both
+   pass through this environment.
 
 Routine maintainer PRs may change exactly one `packages/<id>/manifest.json`.
 Trusted initial-admission automation also records the originating issue in
@@ -59,3 +62,24 @@ issue was previously closed.
 `packages/example/manifest.example.json` is documentation only. Copy it to a
 new `packages/<real-id>/manifest.json` and replace every placeholder when
 submitting the first real package.
+
+## Maintainer profile publication
+
+Catalog profiles are versioned settings archives; they never contain addon
+binaries. Create a draft GitHub Release tagged
+`profile-<id>-v<semver>` and attach the local export as
+`<id>-<semver>.source.vanahub-profile.zip`. Then run **Prepare catalog
+profile**, enter the public metadata, and confirm that the settings are meant
+for public distribution.
+
+Preparation applies the same archive and settings-content restrictions as the
+client importer. It redacts supported structured credential values, blocks
+ambiguous or unsafe content, reports possible personal data without printing
+the matched values, and replaces the source asset with a deterministic
+`<id>-<semver>.vanahub-profile.zip`. The generated manifest PR is independently
+revalidated before the sanitized release is made public and merged. Profile
+versions must increase according to SemVer.
+
+Do not publish the first profile until the catalog-profile download client is
+released. Older clients can browse the expanded metadata but cannot restore
+the hosted settings archive.

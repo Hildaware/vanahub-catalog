@@ -1,0 +1,113 @@
+name: Profile admission
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request created by trusted profile automation.
+        required: true
+        type: number
+      expected_head_sha:
+        description: Exact profile commit prepared by the upload workflow.
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  scan:
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.context.outputs.pr_number }}
+      head_sha: ${{ steps.context.outputs.head_sha }}
+      release_tag: ${{ steps.profile.outputs.release_tag }}
+    steps:
+      - name: Resolve and authenticate the exact generated PR
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VH_PR: ${{ inputs.pr_number }}
+          VH_EXPECTED_HEAD: ${{ inputs.expected_head_sha }}
+          VH_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$VH_PR" =~ ^[1-9][0-9]*$ ]]
+          [[ "$VH_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          details=$(gh pr view "$VH_PR" --repo "$VH_REPOSITORY" --json author,baseRefOid,headRefName,headRefOid,headRepositoryOwner)
+          test "$(jq -r .author.login <<< "$details")" = app/github-actions
+          test "$(jq -r .headRepositoryOwner.login <<< "$details")" = "${VH_REPOSITORY%%/*}"
+          [[ "$(jq -r .headRefName <<< "$details")" == automation/profile/* ]]
+          test "$(jq -r .headRefOid <<< "$details")" = "$VH_EXPECTED_HEAD"
+          echo "pr_number=$VH_PR" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$(jq -r .baseRefOid <<< "$details")" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$VH_EXPECTED_HEAD" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ steps.context.outputs.base_sha }}
+          path: catalog-base
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: Hildaware/vanahub
+          ref: fe5a9d5c81d43c6677b705d2a7950b6a8cac03bf
+          path: product
+          persist-credentials: false
+      - name: Extract and re-scan the exact draft artifact
+        id: profile
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          VH_REPOSITORY: ${{ github.repository }}
+          VH_PR: ${{ steps.context.outputs.pr_number }}
+          VH_HEAD_SHA: ${{ steps.context.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$VH_REPOSITORY/pulls/$VH_PR/files" > changed.json
+          python3 catalog-base/scripts/extract_profile_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json
+          python3 catalog-base/scripts/verify_profile_update.py manifest.json \
+            --previous-root catalog-base/profiles --repository "$VH_REPOSITORY"
+          id=$(jq -r .id manifest.json)
+          version=$(jq -r .version manifest.json)
+          tag="profile-$id-v$version"
+          asset="$id-$version.vanahub-profile.zip"
+          details=$(gh release view "$tag" --repo "$VH_REPOSITORY" --json isDraft,isPrerelease)
+          test "$(jq -r .isDraft <<< "$details")" = true
+          test "$(jq -r .isPrerelease <<< "$details")" = false
+          mkdir artifact
+          gh release download "$tag" --repo "$VH_REPOSITORY" --pattern "$asset" --dir artifact
+          cmake -S product -B product/build/profile -DVH_BUILD_ENGINE=OFF -DVH_BUILD_TESTS=OFF
+          cmake --build product/build/profile --target vanahub_settings_scan
+          python3 product/tools/profile_scan.py verify manifest.json --archive "artifact/$asset" \
+            --output report.json --settings-scanner product/build/profile/vanahub_settings_scan
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+
+  accept:
+    needs: scan
+    permissions:
+      contents: write
+      pull-requests: write
+    environment: profile-publishing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the sanitized release and enable exact-head merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VH_REPOSITORY: ${{ github.repository }}
+          VH_PR: ${{ needs.scan.outputs.pr_number }}
+          VH_HEAD_SHA: ${{ needs.scan.outputs.head_sha }}
+          VH_TAG: ${{ needs.scan.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$VH_TAG" --repo "$VH_REPOSITORY" --draft=false --latest=false
+          gh pr merge "$VH_PR" --repo "$VH_REPOSITORY" --auto --squash --match-head-commit "$VH_HEAD_SHA"
+          jq -n --argjson pr "$VH_PR" --arg head "$VH_HEAD_SHA" \
+            '{prNumber: $pr, headSha: $head}' > admitted-change.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: admitted-catalog-change
+          path: admitted-change.json
+          if-no-files-found: error
+          retention-days: 1
