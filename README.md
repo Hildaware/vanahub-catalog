@@ -38,12 +38,16 @@ Then complete the one-time setup:
 2. Paste the public GitHub repository URL and select the addon directory.
 3. Add the name, description, author, maintainers, categories, and optional
    screenshots. Publisher will guide you through validation.
-4. Copy the generated setup workflow into your repository and run it once.
+4. Save the generated workflow as
+   `.github/workflows/vanahub-setup.yml` in your repository, commit it to the
+   default branch, and run **VanaHub publishing** once from the GitHub Actions
+   tab with the release-tag field left blank.
 5. Review and merge the setup pull request created in your repository.
 6. Publish a stable GitHub Release. The release tag becomes the addon version,
    and the release notes become its changelog in VanaHub.
-7. Open the [addon submission form](https://github.com/Hildaware/vanahub-catalog/issues/new?template=vanahub-submission.yml)
-   with your repository URL and package ID.
+7. When **VanaHub publishing** finishes, open that workflow run in the GitHub
+   Actions tab and follow its **submit this release to VanaHub** link. The link
+   opens a submission already filled in for your validated release.
 
 Publisher creates and maintains the files needed by VanaHub, so you do not
 need to hand-write a catalog manifest or package ZIP. If your repository
@@ -51,7 +55,9 @@ already creates releases with GitHub Actions, Publisher will show the small
 integration step needed to connect that workflow.
 
 The first release is reviewed before it appears in the catalog. The submission
-issue will show progress and any changes that are needed.
+issue will show progress and any changes that are needed. If you no longer have
+the generated link, you can use the [addon submission form](https://github.com/Hildaware/vanahub-catalog/issues/new?template=vanahub-submission.yml)
+and enter the repository URL and package ID manually.
 
 ## Publish an update
 
