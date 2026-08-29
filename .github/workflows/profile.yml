@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 1447410d4462733406d0ef855ba6fb85ce248e5b
+          ref: d85cfa6083b0101ce637e386637ad115dcc2479c
           path: product
           persist-credentials: false
       - name: Build shared settings scanner
