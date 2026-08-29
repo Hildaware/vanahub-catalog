@@ -91,8 +91,14 @@ jobs:
               test "$(jq -r .sourceUrl "$manifest" | tr '[:upper:]' '[:lower:]' | sed 's:/*$::')" = "https://github.com/hildaware/vanahub"
             fi
             id=$(jq -er .id "$manifest")
+            scan_manifest="$manifest"
+            provenance="catalog/packages/$id/provenance.json"
+            if [[ -f "$provenance" && "$(jq -r '.distributionMethod // empty' "$provenance")" == "vanahub-build" ]]; then
+              jq '.sourceUrl = "https://github.com/Hildaware/vanahub-addon-distro"' "$manifest" > "publish-scan-reports/$id.manifest.json"
+              scan_manifest="publish-scan-reports/$id.manifest.json"
+            fi
             bash product/tools/scan_catalog_package.sh \
-              "$manifest" "publish-scan-reports/$id.json" catalog/reviews "semantic-publish/$id"
+              "$scan_manifest" "publish-scan-reports/$id.json" catalog/reviews "semantic-publish/$id"
           done
           profile_manifests=(catalog/profiles/*/manifest.json)
           for manifest in "${profile_manifests[@]}"; do

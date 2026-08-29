@@ -88,6 +88,10 @@ jobs:
           media=()
           if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then media+=(--allow-media --allow-provenance); fi
           python3 catalog-base/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json "${media[@]}"
+          if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then
+            id=$(jq -er .id manifest.json)
+            if gh api "repos/${VH_REPOSITORY}/contents/packages/$id/provenance.json?ref=${VH_HEAD_SHA}" --jq .content | base64 --decode > provenance.json 2>/dev/null; then :; else rm -f provenance.json; fi
+          fi
       - name: Verify and scan
         id: scan
         if: steps.context.outputs.automated != 'true'
@@ -106,9 +110,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          python3 catalog-base/scripts/verify_automated.py manifest.json --previous-root catalog-base/packages
+          args=(catalog-base/scripts/verify_automated.py manifest.json --previous-root catalog-base/packages)
+          if [[ -f provenance.json ]]; then args+=(--provenance provenance.json); fi
+          python3 "${args[@]}"
+          scan_manifest=manifest.json
+          if [[ -f provenance.json && "$(jq -r '.distributionMethod // empty' provenance.json)" == "vanahub-build" ]]; then
+            jq '.sourceUrl = "https://github.com/Hildaware/vanahub-addon-distro"' manifest.json > scan-manifest.json
+            scan_manifest=scan-manifest.json
+          fi
           bash product/tools/scan_catalog_package.sh \
-            manifest.json scan-report.json catalog-base/reviews semantic-review
+            "$scan_manifest" scan-report.json catalog-base/reviews semantic-review
       - name: Detect a completed scan report
         id: report
         if: always()

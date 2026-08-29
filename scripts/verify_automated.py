@@ -49,19 +49,35 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--previous-root", type=Path, required=True)
+    parser.add_argument("--provenance", type=Path)
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    provenance = json.loads(args.provenance.read_text(encoding="utf-8")) if args.provenance else None
     privileged_source = PRIVILEGED_SOURCES.get(manifest.get("id"))
     if privileged_source and manifest.get("sourceUrl", "").rstrip("/").casefold() != privileged_source.casefold():
         raise SystemExit("privileged package ID is reserved for its official source repository")
     owner, repository = repository_parts(manifest.get("sourceUrl", ""))
     download = re.fullmatch(r"https://github\.com/([^/]+)/([^/]+)/releases/download/[^/]+/[^/]+", manifest.get("downloadUrl", ""))
-    if not download or tuple(value.casefold() for value in download.groups()) != (owner.casefold(), repository.casefold()):
-        raise SystemExit("downloadUrl must be a GitHub Release asset from sourceUrl")
-    authorized = authorization(owner, repository, manifest.get("id", ""))
-    declared = {str(name).casefold() for name in manifest.get("maintainers", [])}
-    if not declared or not declared.issubset(authorized):
-        raise SystemExit("catalog maintainers exceed source authorization")
+    community = provenance and provenance.get("schemaVersion") == 2 and provenance.get("distributorRepository") == "https://github.com/Hildaware/vanahub-addon-distro"
+    if community:
+        if provenance.get("packageId") != manifest.get("id") or provenance.get("upstreamRepository", "").rstrip("/").casefold() != manifest.get("sourceUrl", "").rstrip("/").casefold():
+            raise SystemExit("community distribution provenance does not match manifest")
+        if provenance.get("distributionMethod") == "vanahub-build":
+            if not download or tuple(value.casefold() for value in download.groups()) != ("hildaware", "vanahub-addon-distro"):
+                raise SystemExit("community build must be hosted by the distro repository")
+        elif provenance.get("distributionMethod") == "upstream-asset":
+            asset = provenance.get("upstreamAsset", {})
+            if not download or asset.get("url") != manifest.get("downloadUrl"):
+                raise SystemExit("community upstream asset provenance does not match manifest")
+        else:
+            raise SystemExit("community distribution method is invalid")
+    else:
+        if not download or tuple(value.casefold() for value in download.groups()) != (owner.casefold(), repository.casefold()):
+            raise SystemExit("downloadUrl must be a GitHub Release asset from sourceUrl")
+        authorized = authorization(owner, repository, manifest.get("id", ""))
+        declared = {str(name).casefold() for name in manifest.get("maintainers", [])}
+        if not declared or not declared.issubset(authorized):
+            raise SystemExit("catalog maintainers exceed source authorization")
     previous_path = args.previous_root / manifest.get("id", "") / "manifest.json"
     if previous_path.exists():
         previous = json.loads(previous_path.read_text(encoding="utf-8"))

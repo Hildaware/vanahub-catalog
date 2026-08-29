@@ -1,0 +1,143 @@
+name: Admit community distribution candidate
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions: {}
+concurrency:
+  group: community-distribution-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: contains(github.event.issue.labels.*.name, 'community-distribution')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Validate the App-authored handoff envelope
+        env:
+          VH_DISTRIBUTOR_APP: ${{ vars.VANAHUB_DISTRIBUTOR_APP_LOGIN }}
+        run: |
+          set -euo pipefail
+          test -n "$VH_DISTRIBUTOR_APP"
+          python3 scripts/community_distribution.py context --event "$GITHUB_EVENT_PATH" \
+            --expected-author "$VH_DISTRIBUTOR_APP" --output handoff.json
+      - id: context
+        run: |
+          value=$(jq -c . handoff.json)
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: Hildaware/vanahub-addon-distro
+          ref: ${{ fromJSON(steps.context.outputs.value).distroCommit }}
+          path: distro
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Ensure the exact candidate commit is on distro main
+        env:
+          VH_COMMIT: ${{ fromJSON(steps.context.outputs.value).distroCommit }}
+        run: |
+          set -euo pipefail
+          git -C distro fetch --no-tags origin main
+          git -C distro merge-base --is-ancestor "$VH_COMMIT" origin/main
+      - name: Materialize trusted manifest and provenance
+        env:
+          VH_PATH: ${{ fromJSON(steps.context.outputs.value).candidatePath }}
+        run: |
+          set -euo pipefail
+          python3 scripts/community_distribution.py prepare --candidate "distro/$VH_PATH" \
+            --handoff handoff.json --manifest manifest.json --provenance provenance.json
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: Hildaware/vanahub
+          ref: 0134d271197ca7d2a9cb1d59019cc840c329baa0
+          path: product
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned semantic scanner
+        run: python3 -m pip install --disable-pip-version-check --quiet semgrep==1.175.0
+      - name: Re-scan exact artifact and semantic behavior
+        run: |
+          set -euo pipefail
+          # The pinned scanner predates distro provenance. For a VanaHub build,
+          # scan a source-equivalent copy while the handoff validator retains the
+          # upstream source URL in the catalog manifest.
+          scan_manifest=manifest.json
+          if [[ "$(jq -r .distributionMethod provenance.json)" == "vanahub-build" ]]; then
+            jq '.sourceUrl = "https://github.com/Hildaware/vanahub-addon-distro"' manifest.json > scan-manifest.json
+            scan_manifest=scan-manifest.json
+          fi
+          bash product/tools/scan_catalog_package.sh "$scan_manifest" scan-report.json reviews semantic-review
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: validated-community-distribution-${{ github.run_id }}
+          path: |
+            manifest.json
+            provenance.json
+            scan-report.json
+            semantic-review
+          if-no-files-found: error
+          retention-days: 1
+
+  write:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: validated-community-distribution-${{ github.run_id }}
+          path: validated
+      - name: Open audited catalog PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          id=$(jq -er .id validated/manifest.json)
+          version=$(jq -er .version validated/manifest.json)
+          branch="automation/$id/$version"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -C "$branch" origin/main
+          mkdir -p "packages/$id"
+          cp validated/manifest.json "packages/$id/manifest.json"
+          cp validated/provenance.json "packages/$id/provenance.json"
+          git add "packages/$id/manifest.json" "packages/$id/provenance.json"
+          git commit -m "Publish $id $version" || true
+          git push --force-with-lease --set-upstream origin "$branch"
+          pr=$(gh pr list --state open --head "$branch" --json number --jq '.[0].number // empty')
+          if [[ -z "$pr" ]]; then
+            url=$(gh pr create --base main --head "$branch" --title "Publish $id $version" --body "Trusted community-distribution handoff from issue #$ISSUE.")
+            pr=$(gh pr view "$url" --json number --jq .number)
+          fi
+          gh issue comment "$ISSUE" --body "Prepared catalog PR #$pr. Catalog admission will perform its independent re-verification."
+
+  notify-failure:
+    needs: validate
+    if: always() && needs.validate.result == 'failure'
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment "${{ github.event.issue.number }}" --body "Community distribution validation failed. The distro tracking issue remains the source of truth; review the linked workflow evidence before reopening this handoff."
