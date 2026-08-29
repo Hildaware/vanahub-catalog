@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 512f23d8bafdedb90fdcb1381e7ef6921429116f
+          ref: 0134d271197ca7d2a9cb1d59019cc840c329baa0
           path: product
           persist-credentials: false
       - name: Extract and re-scan the exact draft artifact

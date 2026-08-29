@@ -21,12 +21,13 @@ class ScanReportTests(unittest.TestCase):
             "accepted": False,
             "files": ["sample.lua"],
             "detectedCapabilities": ["chat-output"],
-            "findings": [{"severity": "error", "rule": "lua.blocked", "message": "bad <tag>", "path": "sample.lua", "line": 4}],
+            "findings": [{"severity": "error", "rule_id": "lua.blocked", "message": "bad <tag>", "path": "sample.lua", "line": 4}],
         }
         rendered = reporter.render(report, "https://example.test/run", "14")
         self.assertIn("vanahub-scan:sample:1.2.0", rendered)
         self.assertIn("**Result:** Rejected", rendered)
         self.assertIn("bad &lt;tag&gt;", rendered)
+        self.assertIn("lua.blocked", rendered)
         self.assertIn("<code>sample.lua</code>", rendered)
         self.assertIn("Catalog PR: #14", rendered)
         self.assertIn("issue was reopened", rendered)

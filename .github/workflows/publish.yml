@@ -68,9 +68,14 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 512f23d8bafdedb90fdcb1381e7ef6921429116f
+          ref: 0134d271197ca7d2a9cb1d59019cc840c329baa0
           path: product
           persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned semantic scanner
+        run: python3 -m pip install --disable-pip-version-check --quiet semgrep==1.175.0
       - name: Re-scan and build unsigned index
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -78,13 +83,16 @@ jobs:
           set -euo pipefail
           cmake -S product -B product/build/profile -DVH_BUILD_ENGINE=OFF -DVH_BUILD_TESTS=OFF
           cmake --build product/build/profile --target vanahub_settings_scan
+          mkdir -p publish-scan-reports semantic-publish
           shopt -s nullglob
           manifests=(catalog/packages/*/manifest.json)
           for manifest in "${manifests[@]}"; do
             if [[ "$(jq -r .id "$manifest")" == "vanahub" ]]; then
               test "$(jq -r .sourceUrl "$manifest" | tr '[:upper:]' '[:lower:]' | sed 's:/*$::')" = "https://github.com/hildaware/vanahub"
             fi
-            python3 product/tools/catalog_scan.py "$manifest" --output /tmp/scan-report.json
+            id=$(jq -er .id "$manifest")
+            bash product/tools/scan_catalog_package.sh \
+              "$manifest" "publish-scan-reports/$id.json" catalog/reviews "semantic-publish/$id"
           done
           profile_manifests=(catalog/profiles/*/manifest.json)
           for manifest in "${profile_manifests[@]}"; do
@@ -95,6 +103,15 @@ jobs:
             --revocations catalog/revocations.json --unsigned
           if test -d catalog/media; then cp -R catalog/media public/media; fi
           test -s public/index.json
+      - name: Preserve failed publication scans
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rejected-publication-scans
+          path: |
+            publish-scan-reports
+            semantic-publish
+          retention-days: 7
       - name: Resolve an admitted profile release
         id: release
         env:
@@ -158,7 +175,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 512f23d8bafdedb90fdcb1381e7ef6921429116f
+          ref: 0134d271197ca7d2a9cb1d59019cc840c329baa0
           path: product
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

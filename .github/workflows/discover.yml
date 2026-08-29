@@ -26,10 +26,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
+      - name: Install pinned semantic scanner
+        run: python3 -m pip install --disable-pip-version-check --quiet semgrep==1.175.0
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 512f23d8bafdedb90fdcb1381e7ef6921429116f
+          ref: 0134d271197ca7d2a9cb1d59019cc840c329baa0
           path: product
           persist-credentials: false
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -49,7 +51,7 @@ jobs:
           else
             python3 scripts/discover_releases.py poll --packages-root packages --output-dir candidates
           fi
-          mkdir -p cleanup scan-reports
+          mkdir -p cleanup scan-reports semantic-reports
           shopt -s nullglob
           for candidate in candidates/*.json; do
             id=$(jq -r .id "$candidate")
@@ -64,7 +66,8 @@ jobs:
           json.dump({'keys': keys}, open(f'cleanup/{package_id}.json', 'w', encoding='utf-8'))
           PY
             set +e
-            python3 product/tools/catalog_scan.py "$candidate" --output "scan-reports/$id.json"
+            bash product/tools/scan_catalog_package.sh \
+              "$candidate" "scan-reports/$id.json" reviews "semantic-reports/$id"
             scan_status=$?
             set -e
             if [[ "$scan_status" -eq 1 ]]; then
@@ -106,7 +109,7 @@ jobs:
             rm -f media-error.txt
             done
           rm -f candidates/*.source.json
-          find candidates cleanup normalized-media scan-reports -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum > validated.sha256 || true
+          find candidates cleanup normalized-media scan-reports semantic-reports -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum > validated.sha256 || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: validated-discovery-${{ github.run_id }}
@@ -115,6 +118,7 @@ jobs:
             cleanup
             normalized-media
             scan-reports
+            semantic-reports
             validated.sha256
           if-no-files-found: error
           retention-days: 1

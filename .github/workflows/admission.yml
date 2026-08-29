@@ -66,12 +66,14 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: Hildaware/vanahub
-          ref: 512f23d8bafdedb90fdcb1381e7ef6921429116f
+          ref: 0134d271197ca7d2a9cb1d59019cc840c329baa0
           path: product
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
+      - name: Install pinned semantic scanner
+        run: python3 -m pip install --disable-pip-version-check --quiet semgrep==1.175.0
       - name: Obtain and constrain changed manifest as data
         env:
           GH_TOKEN: ${{ github.token }}
@@ -95,6 +97,8 @@ jobs:
           actor: ${{ steps.context.outputs.actor }}
           output: scan-report.json
           previous-root: catalog-base/packages
+          review-root: catalog-base/reviews
+          semantic-output: semantic-review
           token: ${{ github.token }}
       - name: Re-verify and scan catalog automation
         id: automated_scan
@@ -103,7 +107,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           python3 catalog-base/scripts/verify_automated.py manifest.json --previous-root catalog-base/packages
-          python3 product/tools/catalog_scan.py manifest.json --output scan-report.json
+          bash product/tools/scan_catalog_package.sh \
+            manifest.json scan-report.json catalog-base/reviews semantic-review
       - name: Detect a completed scan report
         id: report
         if: always()
@@ -115,6 +120,12 @@ jobs:
           path: scan-report.json
           if-no-files-found: error
           retention-days: 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always() && hashFiles('semantic-review/semantic-review.json') != ''
+        with:
+          name: semantic-review-admission
+          path: semantic-review
+          retention-days: 7
 
   accept:
     needs: scan

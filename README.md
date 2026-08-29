@@ -74,6 +74,12 @@ immediate check, use the [update request form](https://github.com/Hildaware/vana
 
 ## What catalog review means
 
+Every candidate artifact is scanned structurally and then analyzed with pinned
+Semgrep rules at initial submission, update discovery, admission, and final
+publication. Elevated behavior and parser gaps require a maintainer-reviewed
+exact-file baseline under `reviews/`; critical findings cannot be approved.
+Changing a reviewed file invalidates its approval automatically.
+
 Catalog addons must pass VanaHub's automated package and Lua checks.
 These checks keep installs predictable and reject behavior that is outside the
 built-in catalog's intentionally limited scope.
