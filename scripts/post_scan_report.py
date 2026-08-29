@@ -50,7 +50,7 @@ def render(report: dict, run_url: str, pull_request: str = "") -> str:
         lines.extend(["<details>", "<summary>Findings</summary>", ""])
         for finding in findings[:50]:
             severity = html.escape(str(finding.get("severity") or "unknown"))
-            rule = html.escape(str(finding.get("rule") or "unknown"))
+            rule = html.escape(str(finding.get("rule") or finding.get("rule_id") or "unknown"))
             message = html.escape(str(finding.get("message") or ""))
             location = html.escape(str(finding.get("path") or ""))
             if finding.get("line"):

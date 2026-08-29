@@ -72,12 +72,22 @@ def release_manifest(repository_url: str, package_id: str, previous: str | None 
     candidates = []
     previous_version = semver(previous) if previous else None
     for release in releases:
-        version = semver(str(release.get("tag_name", "")))
+        tag_name = str(release.get("tag_name", ""))
+        if "/" in tag_name:
+            prefix, tag_version = tag_name.split("/", 1)
+            if prefix != package_id:
+                continue
+        else:
+            tag_version = tag_name
+
+        version = semver(tag_version)
         if version is None or release.get("draft") or release.get("prerelease"):
             continue
         if previous_version is not None and version <= previous_version:
             continue
-        manifest_asset = next((asset for asset in release.get("assets", []) if asset.get("name") == "vanahub-manifest.json"), None)
+        manifest_asset = next((asset for asset in release.get("assets", []) if asset.get("name") == f"{package_id}-manifest.json"), None)
+        if not manifest_asset:
+            manifest_asset = next((asset for asset in release.get("assets", []) if asset.get("name") == "vanahub-manifest.json"), None)
         if manifest_asset:
             candidates.append((version, release, manifest_asset))
     if not candidates:
@@ -88,7 +98,10 @@ def release_manifest(repository_url: str, package_id: str, previous: str | None 
         raise ValueError("release manifest package ID does not match")
     if manifest.get("sourceUrl", "").rstrip("/").casefold() != repository_url.rstrip("/").casefold():
         raise ValueError("release manifest source repository does not match")
-    tag_version = str(release["tag_name"]).removeprefix("v")
+    raw_tag = str(release["tag_name"])
+    if "/" in raw_tag:
+        raw_tag = raw_tag.split("/", 1)[1]
+    tag_version = raw_tag.removeprefix("v")
     if manifest.get("version") != tag_version:
         raise ValueError("release manifest version does not match its tag")
     declared = {str(name).casefold() for name in manifest.get("maintainers", [])}
