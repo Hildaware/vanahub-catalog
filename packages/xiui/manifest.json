@@ -1,0 +1,33 @@
+{
+  "archiveRoot": "XIUI",
+  "author": "tirem",
+  "categories": [
+    "user-interface"
+  ],
+  "changelog": "**Fixes**\r\n* Party list changing position with bottom align and logout\r\n* Job icons missing sometimes\r\n* Satchel rendering behind partylist/hotbar\r\n* Improved spell and ability checks so known actions are not marked unavailable\r\n* Made every macro use a unique id so slots always point to the right macro\r\n* Saved pending palette and macro edits before job changes so bars stay intact\r\n* Fixed pet abilities and maneuvers staying lit up after the pet was dismissed\r\n* Fixed shared cooldowns so Puppetmaster maneuvers all show the same timer\r\n* Zeroed costs correctly during Trance, Tabula Rasa, Manafont, and Manawell\r\n* Added an Other job category for non standard jobs like Monstrosity\r\n\r\n\r\n\r\n**New Features**\r\n* Phantom Roll module\r\n<img width=\"219\" height=\"181\" alt=\"phantom-roll\" src=\"https://github.com/user-attachments/assets/4c472620-d49b-4831-9070-7ccb1b3d5eb4\" />\r\n\r\n* Blue Magic Learn Notification\r\n<img width=\"517\" height=\"232\" alt=\"image\" src=\"https://github.com/user-attachments/assets/1087253e-be7b-4081-a590-d7256646da89\" />\r\n\r\n* Magic Burst notifier - found under hotbar for now (does not actually require hotbar to activate)\r\n<img width=\"228\" height=\"193\" alt=\"magic-burst\" src=\"https://github.com/user-attachments/assets/524dd886-65fd-4af6-860b-374850324fb5\" />\r\n\r\n* Enemy List debuff timers\r\n* LootPool color'ed name by type option\r\n* Improved cost display for MP, TP, charges, and finishing moves on hotbar slots\r\n* Added Scholar stratagem charges and Dancer finishing move counts including 5+ from Job Points",
+  "compressedSize": 31862941,
+  "declaredCapabilities": [
+    "bundled-file-read",
+    "chat-output",
+    "command-handler",
+    "game-state-read",
+    "packet-read",
+    "settings-write",
+    "ui"
+  ],
+  "description": "A set of UI elements for Ashita v4",
+  "downloadUrl": "https://github.com/tirem/XIUI/releases/download/v1.8.4/XIUI-1.8.4.zip",
+  "entrypoint": "XIUI.lua",
+  "id": "xiui",
+  "maintainers": [
+    "Hildaware"
+  ],
+  "name": "XIUI",
+  "schemaVersion": 1,
+  "sha256": "943004454db88c25d1afde66a0aa3f9bd54b5fc84af7a082fe81ec4516ffa797",
+  "sourceUrl": "https://github.com/tirem/XIUI",
+  "targets": [
+    "retail"
+  ],
+  "version": "1.8.4"
+}
