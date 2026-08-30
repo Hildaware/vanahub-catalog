@@ -3,6 +3,9 @@ name: Catalog admission
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
+    paths:
+      - packages/**
+      - media/**
   workflow_dispatch:
     inputs:
       pr_number:
