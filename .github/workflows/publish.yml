@@ -94,11 +94,15 @@ jobs:
             scan_manifest="$manifest"
             provenance="catalog/packages/$id/provenance.json"
             review_root="catalog/reviews"
+            is_distro_handoff=false
+            if [[ -f "$provenance" && "$(jq -r '.distributorRepository // empty' "$provenance")" == "https://github.com/Hildaware/vanahub-addon-distro" ]]; then
+              is_distro_handoff=true
+            fi
             if [[ -f "$provenance" && "$(jq -r '.distributionMethod // empty' "$provenance")" == "vanahub-build" ]]; then
               jq '.sourceUrl = "https://github.com/Hildaware/vanahub-addon-distro"' "$manifest" > "publish-scan-reports/$id.manifest.json"
               scan_manifest="publish-scan-reports/$id.manifest.json"
             fi
-            if [[ -f "$provenance" && "$(jq -r '.distributorRepository // empty' "$provenance")" == "https://github.com/Hildaware/vanahub-addon-distro" ]]; then
+            if [[ "$is_distro_handoff" == true ]]; then
               distro_commit=$(jq -er .distroCommit "$provenance")
               [[ "$distro_commit" =~ ^[0-9a-f]{40}$ ]]
               checkout="distro-review-cache/$distro_commit"
@@ -110,7 +114,7 @@ jobs:
               test -f "$review_root/$id.json"
             fi
             scan_args=("$scan_manifest" "publish-scan-reports/$id.json" "$review_root" "semantic-publish/$id")
-            if [[ -f "$provenance" ]]; then scan_args+=("$provenance"); fi
+            if [[ "$is_distro_handoff" == true ]]; then scan_args+=("$provenance"); fi
             bash product/tools/scan_catalog_package.sh "${scan_args[@]}"
           done
           profile_manifests=(catalog/profiles/*/manifest.json)
