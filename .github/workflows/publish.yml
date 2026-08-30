@@ -83,7 +83,7 @@ jobs:
           set -euo pipefail
           cmake -S product -B product/build/profile -DVH_BUILD_ENGINE=OFF -DVH_BUILD_TESTS=OFF
           cmake --build product/build/profile --target vanahub_settings_scan
-          mkdir -p publish-scan-reports semantic-publish
+          mkdir -p publish-scan-reports semantic-publish distro-review-cache
           shopt -s nullglob
           manifests=(catalog/packages/*/manifest.json)
           for manifest in "${manifests[@]}"; do
@@ -93,12 +93,25 @@ jobs:
             id=$(jq -er .id "$manifest")
             scan_manifest="$manifest"
             provenance="catalog/packages/$id/provenance.json"
+            review_root="catalog/reviews"
             if [[ -f "$provenance" && "$(jq -r '.distributionMethod // empty' "$provenance")" == "vanahub-build" ]]; then
               jq '.sourceUrl = "https://github.com/Hildaware/vanahub-addon-distro"' "$manifest" > "publish-scan-reports/$id.manifest.json"
               scan_manifest="publish-scan-reports/$id.manifest.json"
             fi
-            bash product/tools/scan_catalog_package.sh \
-              "$scan_manifest" "publish-scan-reports/$id.json" catalog/reviews "semantic-publish/$id"
+            if [[ -f "$provenance" && "$(jq -r '.distributorRepository // empty' "$provenance")" == "https://github.com/Hildaware/vanahub-addon-distro" ]]; then
+              distro_commit=$(jq -er .distroCommit "$provenance")
+              [[ "$distro_commit" =~ ^[0-9a-f]{40}$ ]]
+              checkout="distro-review-cache/$distro_commit"
+              if [[ ! -d "$checkout/.git" ]]; then
+                git clone --quiet --no-checkout --filter=blob:none https://github.com/Hildaware/vanahub-addon-distro "$checkout"
+                git -C "$checkout" checkout --quiet --detach "$distro_commit"
+              fi
+              review_root="$checkout/.vanahub/reviews"
+              test -f "$review_root/$id.json"
+            fi
+            scan_args=("$scan_manifest" "publish-scan-reports/$id.json" "$review_root" "semantic-publish/$id")
+            if [[ -f "$provenance" ]]; then scan_args+=("$provenance"); fi
+            bash product/tools/scan_catalog_package.sh "${scan_args[@]}"
           done
           profile_manifests=(catalog/profiles/*/manifest.json)
           for manifest in "${profile_manifests[@]}"; do
