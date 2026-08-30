@@ -55,7 +55,7 @@ jobs:
         with:
           name: semantic-review-submission-${{ github.run_id }}
           path: semantic-review
-          retention-days: 7
+          retention-days: 90
       - name: Normalize and moderate untrusted media
         run: |
           set -euo pipefail
@@ -90,7 +90,7 @@ jobs:
             semantic-review
             validated.sha256
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 90
 
   write:
     needs: validate
@@ -133,7 +133,7 @@ jobs:
           cd ..
           gh label create vanahub-submission --repo "${{ github.repository }}" --color 1f6feb --description "VanaHub catalog admission request" --force
           gh issue edit "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --add-label vanahub-submission
-          gh auth setup-git
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           branch="automation/${id}/${version}"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

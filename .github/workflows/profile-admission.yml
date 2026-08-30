@@ -99,7 +99,7 @@ jobs:
             report.json
             report.md
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
 
   accept:
     needs: scan
@@ -125,4 +125,4 @@ jobs:
           name: admitted-catalog-change
           path: admitted-change.json
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 90

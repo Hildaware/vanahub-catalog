@@ -109,3 +109,5 @@ post tokens, credentials, private settings, or other sensitive data.
 
 For Publisher-specific documentation, see the
 [VanaHub Publisher repository](https://github.com/Hildaware/vanahub-publisher).
+
+Trusted community-distribution handoffs use the human semantic baseline and versioned SHA-bound attestation from `vanahub-addon-distro`; the catalog independently downloads and re-scans the exact artifact. Scanner or policy drift is retained as audit evidence but does not revoke approval for the identical artifact SHA. Ordinary and legacy catalog submissions continue using catalog-owned semantic review baselines.

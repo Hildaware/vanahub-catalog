@@ -13,6 +13,7 @@ from pathlib import Path
 DISTRO = "https://github.com/Hildaware/vanahub-addon-distro"
 PACKAGE_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
 COMMIT = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def fields(body: str) -> dict[str, str]:
@@ -24,7 +25,8 @@ def fields(body: str) -> dict[str, str]:
 
 def context(event: dict, expected_author: str) -> dict:
     issue = event.get("issue") or {}
-    if not expected_author or str(issue.get("user", {}).get("login", "")).casefold() != expected_author.casefold():
+    author = str(issue.get("user", {}).get("login", ""))
+    if not expected_author or author.casefold() != expected_author.casefold():
         raise ValueError("community distribution handoff was not created by the trusted distributor App")
     values = fields(str(issue.get("body", "")))
     required = ["distro repository", "distro issue", "distro commit", "candidate path", "package id", "version", "sha256"]
@@ -32,25 +34,62 @@ def context(event: dict, expected_author: str) -> dict:
         raise ValueError("community distribution issue is incomplete")
     if values["distro repository"].rstrip("/") != DISTRO:
         raise ValueError("community distribution issue names an untrusted distro repository")
-    if not PACKAGE_ID.fullmatch(values["package id"]):
+    package_id = values["package id"]
+    commit = values["distro commit"]
+    candidate_path = values["candidate path"]
+    artifact_sha = values["sha256"]
+    if not PACKAGE_ID.fullmatch(package_id):
         raise ValueError("community distribution package ID is invalid")
-    if not COMMIT.fullmatch(values["distro commit"]):
+    if not COMMIT.fullmatch(commit):
         raise ValueError("community distribution commit is invalid")
-    if not re.fullmatch(rf"packages/{re.escape(values['package id'])}/releases/[0-9A-Za-z.+-]+\.json", values["candidate path"]):
+    if not re.fullmatch(rf"packages/{re.escape(package_id)}/releases/[0-9A-Za-z.+-]+\.json", candidate_path):
         raise ValueError("community distribution candidate path is invalid")
-    if not re.fullmatch(r"[a-f0-9]{64}", values["sha256"]):
+    if not SHA256.fullmatch(artifact_sha):
         raise ValueError("community distribution SHA-256 is invalid")
     if not values["distro issue"].isdigit() or int(values["distro issue"]) < 1:
         raise ValueError("community distribution distro issue is invalid")
     return {
         "catalogIssue": int(issue["number"]),
         "distroIssue": int(values["distro issue"]),
-        "distroCommit": values["distro commit"],
-        "candidatePath": values["candidate path"],
-        "packageId": values["package id"],
+        "distroCommit": commit,
+        "candidatePath": candidate_path,
+        "packageId": package_id,
         "version": values["version"],
-        "sha256": values["sha256"],
+        "sha256": artifact_sha,
+        "attemptId": values.get("attempt id", ""),
     }
+
+
+def validate_attestation(candidate: dict, manifest: dict, provenance: dict) -> dict:
+    semantic = candidate.get("semanticReview")
+    if not isinstance(semantic, dict) or semantic.get("schemaVersion") not in {1, 2}:
+        raise ValueError("candidate semantic attestation is missing or unsupported")
+    if semantic.get("artifactSha256") != manifest.get("sha256"):
+        raise ValueError("candidate semantic attestation is for a different artifact")
+    baseline = semantic.get("baseline")
+    if not isinstance(baseline, dict) or baseline.get("schemaVersion") != 1:
+        raise ValueError("candidate semantic baseline is invalid")
+    if baseline.get("packageId") != manifest.get("id") or not isinstance(baseline.get("files"), dict):
+        raise ValueError("candidate semantic baseline does not match package")
+    reviewed_commit = baseline.get("reviewedCommit")
+    if not isinstance(reviewed_commit, str) or not COMMIT.fullmatch(reviewed_commit):
+        raise ValueError("candidate semantic baseline reviewed commit is invalid")
+    if reviewed_commit != provenance.get("upstreamCommit"):
+        raise ValueError("candidate semantic baseline commit does not match provenance upstream commit")
+    if semantic["schemaVersion"] == 2:
+        if semantic.get("upstreamCommit") != provenance.get("upstreamCommit"):
+            raise ValueError("candidate semantic attestation upstream commit does not match provenance")
+        scanner = semantic.get("scanner") or {}
+        if (
+            not isinstance(scanner.get("repository"), str)
+            or not COMMIT.fullmatch(str(scanner.get("revision", "")))
+            or not SHA256.fullmatch(str(scanner.get("policySha256", "")))
+            or not isinstance(scanner.get("semgrepVersion"), str)
+            or not scanner["semgrepVersion"]
+            or not SHA256.fullmatch(str(semantic.get("reportSha256", "")))
+        ):
+            raise ValueError("candidate semantic scanner identity is invalid")
+    return semantic
 
 
 def prepare(candidate: dict, handoff: dict) -> tuple[dict, dict, dict]:
@@ -62,31 +101,36 @@ def prepare(candidate: dict, handoff: dict) -> tuple[dict, dict, dict]:
         raise ValueError("candidate record is incomplete")
     if manifest.get("id") != handoff["packageId"] or provenance.get("packageId") != handoff["packageId"]:
         raise ValueError("candidate package ID does not match handoff")
-    if manifest.get("version") != handoff["version"] or manifest.get("sha256") != handoff["sha256"]:
-        raise ValueError("candidate version or SHA-256 does not match handoff")
+    if manifest.get("version") != handoff["version"]:
+        raise ValueError("candidate version does not match handoff")
+    if manifest.get("sha256") != handoff["sha256"]:
+        raise ValueError("candidate SHA-256 does not match handoff")
     if provenance.get("schemaVersion") != 2 or provenance.get("distributorRepository") != DISTRO:
-        raise ValueError("candidate provenance is not a trusted distro record")
+        raise ValueError("candidate provenance is not from the trusted distributor")
     if provenance.get("distroIssue") != handoff["distroIssue"]:
         raise ValueError("candidate distro issue does not match handoff")
-    semantic = candidate.get("semanticReview")
-    if not isinstance(semantic, dict) or semantic.get("schemaVersion") != 1:
-        raise ValueError("candidate semantic review attestation is missing")
-    if semantic.get("artifactSha256") != manifest.get("sha256"):
-        raise ValueError("candidate semantic review attestation does not match artifact")
-    baseline = semantic.get("baseline")
-    if not isinstance(baseline, dict) or baseline.get("schemaVersion") != 1 or baseline.get("packageId") != manifest.get("id"):
-        raise ValueError("candidate semantic review baseline is invalid")
-    if not isinstance(baseline.get("reviewedCommit"), str) or not COMMIT.fullmatch(baseline["reviewedCommit"]):
-        raise ValueError("candidate semantic review baseline commit is invalid")
-    if not isinstance(baseline.get("files"), dict) or not all(
-        isinstance(path, str) and isinstance(digest, str) and re.fullmatch(r"[a-f0-9]{64}", digest)
-        for path, digest in baseline["files"].items()
+    semantic = validate_attestation(candidate, manifest, provenance)
+    bound_provenance = dict(provenance)
+    bound_provenance["distroCommit"] = handoff["distroCommit"]
+    bound_provenance["catalogSubmissionIssue"] = handoff["catalogIssue"]
+    return manifest, bound_provenance, semantic["baseline"]
+
+
+def audit(candidate: dict, manifest: dict, provenance: dict) -> tuple[dict, dict]:
+    candidate_manifest = candidate.get("manifest") or {}
+    candidate_provenance = candidate.get("provenance") or {}
+    if (
+        candidate_manifest.get("id") != manifest.get("id")
+        or candidate_manifest.get("version") != manifest.get("version")
+        or candidate_manifest.get("sha256") != manifest.get("sha256")
     ):
-        raise ValueError("candidate semantic review baseline files are invalid")
-    provenance = dict(provenance)
-    provenance["distroCommit"] = handoff["distroCommit"]
-    provenance["catalogSubmissionIssue"] = handoff["catalogIssue"]
-    return manifest, provenance, baseline
+        raise ValueError("published manifest does not match immutable distro candidate")
+    if provenance.get("distroCommit") is None or provenance.get("distroIssue") != candidate_provenance.get("distroIssue"):
+        raise ValueError("published provenance does not match immutable distro candidate")
+    if provenance.get("upstreamCommit") != candidate_provenance.get("upstreamCommit"):
+        raise ValueError("published upstream commit does not match immutable distro candidate")
+    semantic = validate_attestation(candidate, candidate_manifest, candidate_provenance)
+    return semantic["baseline"], semantic
 
 
 def main() -> int:
@@ -102,18 +146,36 @@ def main() -> int:
     prepare_command.add_argument("--manifest", type=Path, required=True)
     prepare_command.add_argument("--provenance", type=Path, required=True)
     prepare_command.add_argument("--semantic-baseline", type=Path, required=True)
+    prepare_command.add_argument("--semantic-attestation", type=Path)
+    audit_command = commands.add_parser("audit")
+    audit_command.add_argument("--candidate", type=Path, required=True)
+    audit_command.add_argument("--manifest", type=Path, required=True)
+    audit_command.add_argument("--provenance", type=Path, required=True)
+    audit_command.add_argument("--semantic-baseline", type=Path, required=True)
+    audit_command.add_argument("--semantic-attestation", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "context":
             value = context(json.loads(args.event.read_text(encoding="utf-8")), args.expected_author)
             args.output.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        else:
+        elif args.command == "prepare":
             candidate = json.loads(args.candidate.read_text(encoding="utf-8"))
             handoff = json.loads(args.handoff.read_text(encoding="utf-8"))
             manifest, provenance, baseline = prepare(candidate, handoff)
             args.manifest.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             args.provenance.write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             args.semantic_baseline.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            if args.semantic_attestation:
+                args.semantic_attestation.write_text(
+                    json.dumps(candidate["semanticReview"], indent=2, sort_keys=True) + "\n", encoding="utf-8"
+                )
+        else:
+            candidate = json.loads(args.candidate.read_text(encoding="utf-8"))
+            manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+            provenance = json.loads(args.provenance.read_text(encoding="utf-8"))
+            baseline, attestation = audit(candidate, manifest, provenance)
+            args.semantic_baseline.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            args.semantic_attestation.write_text(json.dumps(attestation, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         print(f"community distribution error: {exc}", file=sys.stderr)
         return 2
