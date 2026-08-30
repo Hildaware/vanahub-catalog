@@ -53,7 +53,7 @@ def context(event: dict, expected_author: str) -> dict:
     }
 
 
-def prepare(candidate: dict, handoff: dict) -> tuple[dict, dict]:
+def prepare(candidate: dict, handoff: dict) -> tuple[dict, dict, dict]:
     if candidate.get("schemaVersion") != 1:
         raise ValueError("candidate record schema is unsupported")
     manifest = candidate.get("manifest")
@@ -68,10 +68,25 @@ def prepare(candidate: dict, handoff: dict) -> tuple[dict, dict]:
         raise ValueError("candidate provenance is not a trusted distro record")
     if provenance.get("distroIssue") != handoff["distroIssue"]:
         raise ValueError("candidate distro issue does not match handoff")
+    semantic = candidate.get("semanticReview")
+    if not isinstance(semantic, dict) or semantic.get("schemaVersion") != 1:
+        raise ValueError("candidate semantic review attestation is missing")
+    if semantic.get("artifactSha256") != manifest.get("sha256"):
+        raise ValueError("candidate semantic review attestation does not match artifact")
+    baseline = semantic.get("baseline")
+    if not isinstance(baseline, dict) or baseline.get("schemaVersion") != 1 or baseline.get("packageId") != manifest.get("id"):
+        raise ValueError("candidate semantic review baseline is invalid")
+    if not isinstance(baseline.get("reviewedCommit"), str) or not COMMIT.fullmatch(baseline["reviewedCommit"]):
+        raise ValueError("candidate semantic review baseline commit is invalid")
+    if not isinstance(baseline.get("files"), dict) or not all(
+        isinstance(path, str) and isinstance(digest, str) and re.fullmatch(r"[a-f0-9]{64}", digest)
+        for path, digest in baseline["files"].items()
+    ):
+        raise ValueError("candidate semantic review baseline files are invalid")
     provenance = dict(provenance)
     provenance["distroCommit"] = handoff["distroCommit"]
     provenance["catalogSubmissionIssue"] = handoff["catalogIssue"]
-    return manifest, provenance
+    return manifest, provenance, baseline
 
 
 def main() -> int:
@@ -86,6 +101,7 @@ def main() -> int:
     prepare_command.add_argument("--handoff", type=Path, required=True)
     prepare_command.add_argument("--manifest", type=Path, required=True)
     prepare_command.add_argument("--provenance", type=Path, required=True)
+    prepare_command.add_argument("--semantic-baseline", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "context":
@@ -94,9 +110,10 @@ def main() -> int:
         else:
             candidate = json.loads(args.candidate.read_text(encoding="utf-8"))
             handoff = json.loads(args.handoff.read_text(encoding="utf-8"))
-            manifest, provenance = prepare(candidate, handoff)
+            manifest, provenance, baseline = prepare(candidate, handoff)
             args.manifest.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             args.provenance.write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            args.semantic_baseline.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         print(f"community distribution error: {exc}", file=sys.stderr)
         return 2
