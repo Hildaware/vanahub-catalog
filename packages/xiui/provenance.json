@@ -1,0 +1,35 @@
+{
+  "catalogSubmissionIssue": 22,
+  "distributionMethod": "upstream-asset",
+  "distributorRepository": "https://github.com/Hildaware/vanahub-addon-distro",
+  "distroCommit": "f084ffd633cfc6f5e439f78334029c3499e200ac",
+  "distroIssue": 1,
+  "license": "GPL-3.0",
+  "packageId": "xiui",
+  "reviewedException": {
+    "allowedFindings": [
+      {
+        "message": "File type .bat is prohibited",
+        "path": "XIUI/assets/status/HD/remove0.bat",
+        "ruleId": "zip.file-type"
+      }
+    ],
+    "approvedAt": "2026-08-30",
+    "assetId": 535954702,
+    "rationale": "Reviewed as a non-runtime helper; it is not loaded by the addon.",
+    "reviewer": "bferrari352",
+    "upstreamCommit": "aa10d729bd759f4b5e8eb31827171dd971ee6656",
+    "upstreamTag": "v1.8.4"
+  },
+  "schemaVersion": 2,
+  "upstreamAsset": {
+    "id": 535954702,
+    "name": "XIUI-1.8.4.zip",
+    "url": "https://github.com/tirem/XIUI/releases/download/v1.8.4/XIUI-1.8.4.zip"
+  },
+  "upstreamCommit": "aa10d729bd759f4b5e8eb31827171dd971ee6656",
+  "upstreamReleaseId": 363537879,
+  "upstreamReleaseUrl": "https://github.com/tirem/XIUI/releases/tag/v1.8.4",
+  "upstreamRepository": "https://github.com/tirem/XIUI",
+  "upstreamTag": "v1.8.4"
+}
