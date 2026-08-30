@@ -76,8 +76,9 @@ jobs:
             jq '.sourceUrl = "https://github.com/Hildaware/vanahub-addon-distro"' manifest.json > scan-manifest.json
             scan_manifest=scan-manifest.json
           fi
-          bash product/tools/scan_catalog_package.sh "$scan_manifest" scan-report.json reviews semantic-review
+          bash product/tools/scan_catalog_package.sh "$scan_manifest" scan-report.json reviews semantic-review provenance.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
         with:
           name: validated-community-distribution-${{ github.run_id }}
           path: |
@@ -140,4 +141,4 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh issue comment "${{ github.event.issue.number }}" --body "Community distribution validation failed. The distro tracking issue remains the source of truth; review the linked workflow evidence before reopening this handoff."
+        run: gh issue comment "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" --body "Community distribution validation failed. The distro tracking issue remains the source of truth; review the linked workflow evidence before reopening this handoff."
