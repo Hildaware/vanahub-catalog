@@ -117,6 +117,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           id=$(jq -er .id validated/manifest.json)
           version=$(jq -er .version validated/manifest.json)
           branch="automation/$id/$version"
