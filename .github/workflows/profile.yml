@@ -94,7 +94,7 @@ jobs:
           name: validated-profile-${{ github.run_id }}
           path: validated
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
 
   stage:
     needs: scan
@@ -163,7 +163,7 @@ jobs:
           git add "profiles/$id/manifest.json"
           git commit -m "Publish profile $id $version"
           head_sha=$(git rev-parse HEAD)
-          gh auth setup-git
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force-with-lease --set-upstream origin "$branch"
           {
             echo 'Validated a sanitized profile archive. Approving this exact PR head starts independent admission; the release remains private until the approved change merges and the signed catalog is ready.'

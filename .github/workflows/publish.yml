@@ -110,12 +110,43 @@ jobs:
                 git clone --quiet --no-checkout --filter=blob:none https://github.com/Hildaware/vanahub-addon-distro "$checkout"
                 git -C "$checkout" checkout --quiet --detach "$distro_commit"
               fi
-              review_root="$checkout/.vanahub/reviews"
-              test -f "$review_root/$id.json"
+              version=$(jq -er .version "$manifest")
+              candidate="$checkout/packages/$id/releases/$version.json"
+              test -f "$candidate"
+              review_root="distro-review-cache/reviews-$id"
+              mkdir -p "$review_root" "publish-scan-reports/attestations"
+              python3 catalog/scripts/community_distribution.py audit \
+                --candidate "$candidate" --manifest "$manifest" --provenance "$provenance" \
+                --semantic-baseline "$review_root/$id.json" \
+                --semantic-attestation "publish-scan-reports/attestations/$id.json"
             fi
             scan_args=("$scan_manifest" "publish-scan-reports/$id.json" "$review_root" "semantic-publish/$id")
             if [[ "$is_distro_handoff" == true ]]; then scan_args+=("$provenance"); fi
+            set +e
             bash product/tools/scan_catalog_package.sh "${scan_args[@]}"
+            scan_status=$?
+            set -e
+            if (( scan_status != 0 )) && [[ "$is_distro_handoff" == true && -s "semantic-publish/$id/semantic-review.json" ]]; then
+              attestation="publish-scan-reports/attestations/$id.json"
+              scanner_revision=$(git -C product rev-parse HEAD)
+              policy_sha=$(sha256sum product/policy/semgrep-lua.yml | cut -d' ' -f1)
+              semgrep_version=$(semgrep --version | head -n 1)
+              drift=false
+              if [[ "$(jq -r .schemaVersion "$attestation")" == 1 ]]; then
+                drift=true
+              elif [[ "$(jq -r .scanner.revision "$attestation")" != "$scanner_revision" || \
+                      "$(jq -r .scanner.policySha256 "$attestation")" != "$policy_sha" || \
+                      "$(jq -r .scanner.semgrepVersion "$attestation")" != "$semgrep_version" ]]; then
+                drift=true
+              fi
+              jq -n --argjson policyDrift "$drift" --arg scannerRevision "$scanner_revision" \
+                --arg policySha256 "$policy_sha" --arg semgrepVersion "$semgrep_version" \
+                '{policyDrift: $policyDrift, currentScanner: {revision: $scannerRevision, policySha256: $policySha256, semgrepVersion: $semgrepVersion}}' \
+                > "publish-scan-reports/$id.scanner-drift.json"
+              [[ "$drift" == true ]] || exit "$scan_status"
+            elif (( scan_status != 0 )); then
+              exit "$scan_status"
+            fi
           done
           profile_manifests=(catalog/profiles/*/manifest.json)
           for manifest in "${profile_manifests[@]}"; do
@@ -134,7 +165,7 @@ jobs:
           path: |
             publish-scan-reports
             semantic-publish
-          retention-days: 7
+          retention-days: 90
       - name: Resolve an admitted profile release
         id: release
         env:
@@ -163,7 +194,7 @@ jobs:
           name: unsigned-catalog
           path: public
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 90
 
   publish-profile-release:
     needs: [validate, sign]
@@ -227,3 +258,36 @@ jobs:
     environment: github-pages
     steps:
       - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+  reconcile-community-distributions:
+    needs: deploy
+    permissions:
+      contents: read
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Close published handoff issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh label create published --color 1a7f37 --description 'Artifact is present in the deployed catalog' --force
+          shopt -s nullglob
+          for provenance in packages/*/provenance.json; do
+            [[ "$(jq -r '.distributorRepository // empty' "$provenance")" == "https://github.com/Hildaware/vanahub-addon-distro" ]] || continue
+            issue=$(jq -er .catalogSubmissionIssue "$provenance")
+            id=$(jq -er .packageId "$provenance")
+            manifest="packages/$id/manifest.json"
+            version=$(jq -er .version "$manifest")
+            sha=$(jq -er .sha256 "$manifest")
+            if gh issue view "$issue" --json labels --jq '.labels[].name' | grep -Fxq published; then
+              continue
+            fi
+            gh issue edit "$issue" --add-label published --remove-label 'catalog:admitted' --remove-label 'handoff:pending' || true
+            gh issue comment "$issue" --body "Published \`$id $version\` to the catalog with artifact SHA-256 \`$sha\`."
+            gh issue close "$issue" --reason completed || true
+          done

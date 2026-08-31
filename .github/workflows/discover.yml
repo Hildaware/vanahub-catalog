@@ -121,7 +121,7 @@ jobs:
             semantic-reports
             validated.sha256
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 90
 
   write:
     needs: validate
@@ -150,7 +150,7 @@ jobs:
           cd validated
           if test -s validated.sha256; then sha256sum --check validated.sha256; fi
           cd ..
-          gh auth setup-git
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           mkdir -p validated/prepared-prs
           shopt -s nullglob
           for candidate in validated/candidates/*.json; do
