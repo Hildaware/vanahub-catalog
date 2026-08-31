@@ -35,7 +35,7 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
     def test_scanner_setup_is_shared_and_pinned(self):
         action = (ROOT / ".github" / "actions" / "setup-catalog-scanner" / "action.yml").read_text(encoding="utf-8")
         self.assertIn("semgrep==1.175.0", action)
-        self.assertIn("293155d5f7464be0c7184766ce7b71d822312157", action)
+        self.assertIn("5ec5070ed85b01df026b0bc8053cb7ff68afee42", action)
         for workflow in ("admission.yml", "community-distribution.yml", "discover.yml", "publish.yml"):
             with self.subTest(workflow=workflow):
                 source = self.workflow(workflow)
