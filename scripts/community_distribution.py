@@ -107,6 +107,11 @@ def prepare(candidate: dict, handoff: dict) -> tuple[dict, dict, dict]:
         raise ValueError("candidate SHA-256 does not match handoff")
     if provenance.get("schemaVersion") != 2 or provenance.get("distributorRepository") != DISTRO:
         raise ValueError("candidate provenance is not from the trusted distributor")
+    if provenance.get("distributionMethod") != "upstream-asset":
+        raise ValueError("candidate distribution method is invalid")
+    asset = provenance.get("upstreamAsset")
+    if not isinstance(asset, dict) or asset.get("url") != manifest.get("downloadUrl"):
+        raise ValueError("candidate upstream asset does not match manifest")
     if provenance.get("distroIssue") != handoff["distroIssue"]:
         raise ValueError("candidate distro issue does not match handoff")
     semantic = validate_attestation(candidate, manifest, provenance)

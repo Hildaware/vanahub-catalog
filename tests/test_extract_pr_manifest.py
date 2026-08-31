@@ -4,6 +4,7 @@ import importlib.util
 import sys
 import unittest
 import io
+import json
 from pathlib import Path
 
 from PIL import Image
@@ -70,6 +71,29 @@ class ExtractManifestTests(unittest.TestCase):
                 b'{"schemaVersion":1,"packageId":"other","submissionIssue":12}',
                 "sample",
             )
+
+    def test_community_provenance_requires_upstream_asset(self):
+        provenance = {
+            "schemaVersion": 2,
+            "packageId": "sample",
+            "distributionMethod": "upstream-asset",
+            "distributorRepository": "https://github.com/Hildaware/vanahub-addon-distro",
+            "distroIssue": 12,
+            "distroCommit": "a" * 40,
+            "upstreamRepository": "https://github.com/author/sample",
+            "upstreamReleaseId": 34,
+            "upstreamReleaseUrl": "https://github.com/author/sample/releases/tag/v1.2.3",
+            "upstreamTag": "v1.2.3",
+            "upstreamCommit": "b" * 40,
+            "license": "MIT",
+            "catalogSubmissionIssue": 56,
+            "upstreamAsset": {"id": 78, "name": "sample.zip", "url": "https://github.com/author/sample/releases/download/v1.2.3/sample.zip"},
+        }
+        extract.validate_provenance(json.dumps(provenance).encode(), "sample")
+        provenance["distributionMethod"] = "vanahub-build"
+        provenance["buildRevision"] = 1
+        with self.assertRaisesRegex(ValueError, "unknown|method"):
+            extract.validate_provenance(json.dumps(provenance).encode(), "sample")
 
     def test_media_bytes_must_match_filename_and_manifest(self):
         output = io.BytesIO()

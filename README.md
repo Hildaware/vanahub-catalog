@@ -100,6 +100,12 @@ for unsupported files, credentials, and possible personal information. Profile
 submissions are not generally open yet; public instructions will be added here
 when the sharing flow is ready.
 
+## Private distributor access
+
+Community-distribution evidence is read from the private `Hildaware/vanahub-addon-distro` repository with short-lived tokens from the VanaHub distributor GitHub App. Install the App on both repositories with **Contents: read** and **Issues: read and write**, then set `VANAHUB_DISTRIBUTOR_APP_ID` and `VANAHUB_DISTRIBUTOR_APP_PRIVATE_KEY` as catalog repository secrets and `VANAHUB_DISTRIBUTOR_APP_LOGIN` as the App bot-login repository variable.
+
+The distributor only admits existing public upstream GitHub Release ZIPs. It does not build, repackage, or host addon binaries.
+
 ## Questions and support
 
 If Publisher validation fails, start with the explanation it provides. For a

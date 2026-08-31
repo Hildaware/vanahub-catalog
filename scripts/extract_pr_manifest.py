@@ -86,22 +86,18 @@ def validate_provenance(content: bytes, package_id: str) -> None:
         "distroCommit", "upstreamRepository", "upstreamReleaseId", "upstreamReleaseUrl", "upstreamTag",
         "upstreamCommit", "license", "catalogSubmissionIssue",
     }
-    optional = {"upstreamAsset", "buildRevision"}
+    optional = {"upstreamAsset", "reviewedException"}
     if document.get("schemaVersion") != 2 or not required.issubset(document) or set(document) - required - optional:
         raise ValueError("community distribution provenance has unknown or missing fields")
     if document.get("packageId") != package_id or document.get("distributorRepository") != "https://github.com/Hildaware/vanahub-addon-distro":
         raise ValueError("community distribution provenance is invalid")
     if not isinstance(document.get("distroIssue"), int) or not isinstance(document.get("catalogSubmissionIssue"), int):
         raise ValueError("community distribution provenance issues are invalid")
-    if document.get("distributionMethod") == "upstream-asset":
-        asset = document.get("upstreamAsset")
-        if not isinstance(asset, dict) or set(asset) != {"id", "name", "url"}:
-            raise ValueError("community upstream-asset provenance is invalid")
-    elif document.get("distributionMethod") == "vanahub-build":
-        if not isinstance(document.get("buildRevision"), int) or document["buildRevision"] < 1:
-            raise ValueError("community build provenance is invalid")
-    else:
+    if document.get("distributionMethod") != "upstream-asset":
         raise ValueError("community distribution method is invalid")
+    asset = document.get("upstreamAsset")
+    if not isinstance(asset, dict) or set(asset) != {"id", "name", "url"}:
+        raise ValueError("community upstream-asset provenance is invalid")
 
 
 def validate_media(path: str, content: bytes, manifest: dict, media_base: str) -> None:

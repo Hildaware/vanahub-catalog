@@ -62,15 +62,11 @@ def main() -> int:
     if community:
         if provenance.get("packageId") != manifest.get("id") or provenance.get("upstreamRepository", "").rstrip("/").casefold() != manifest.get("sourceUrl", "").rstrip("/").casefold():
             raise SystemExit("community distribution provenance does not match manifest")
-        if provenance.get("distributionMethod") == "vanahub-build":
-            if not download or tuple(value.casefold() for value in download.groups()) != ("hildaware", "vanahub-addon-distro"):
-                raise SystemExit("community build must be hosted by the distro repository")
-        elif provenance.get("distributionMethod") == "upstream-asset":
-            asset = provenance.get("upstreamAsset", {})
-            if not download or asset.get("url") != manifest.get("downloadUrl"):
-                raise SystemExit("community upstream asset provenance does not match manifest")
-        else:
+        if provenance.get("distributionMethod") != "upstream-asset":
             raise SystemExit("community distribution method is invalid")
+        asset = provenance.get("upstreamAsset", {})
+        if not download or asset.get("url") != manifest.get("downloadUrl"):
+            raise SystemExit("community upstream asset provenance does not match manifest")
     else:
         if not download or tuple(value.casefold() for value in download.groups()) != (owner.casefold(), repository.casefold()):
             raise SystemExit("downloadUrl must be a GitHub Release asset from sourceUrl")

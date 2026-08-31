@@ -34,6 +34,7 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 """}}
 
     def candidate(self, schema=1):
+        asset_url = "https://github.com/author/sample/releases/download/v1.2.3/sample.zip"
         semantic = {
             "schemaVersion": schema,
             "artifactSha256": "b" * 64,
@@ -57,7 +58,7 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
             })
         return {
             "schemaVersion": 1,
-            "manifest": {"id": "sample", "version": "1.2.3", "sha256": "b" * 64},
+            "manifest": {"id": "sample", "version": "1.2.3", "sha256": "b" * 64, "downloadUrl": asset_url},
             "semanticReview": semantic,
             "provenance": {
                 "schemaVersion": 2,
@@ -66,6 +67,7 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
                 "distributorRepository": community_distribution.DISTRO,
                 "distroIssue": 12,
                 "upstreamCommit": "a" * 40,
+                "upstreamAsset": {"id": 34, "name": "sample.zip", "url": asset_url},
             },
         }
 
@@ -103,6 +105,13 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
         candidate["semanticReview"]["baseline"]["reviewedCommit"] = "c" * 40
         handoff = community_distribution.context(self.event(), "vanahub-distributor[bot]")
         with self.assertRaisesRegex(ValueError, "does not match provenance"):
+            community_distribution.prepare(candidate, handoff)
+
+    def test_rejects_distro_hosted_build_candidate(self):
+        candidate = self.candidate()
+        candidate["provenance"]["distributionMethod"] = "vanahub-build"
+        handoff = community_distribution.context(self.event(), "vanahub-distributor[bot]")
+        with self.assertRaisesRegex(ValueError, "distribution method"):
             community_distribution.prepare(candidate, handoff)
 
     def test_rejects_untrusted_author_and_path_escape(self):

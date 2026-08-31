@@ -70,9 +70,17 @@ jobs:
           path: catalog
           persist-credentials: false
       - uses: ./catalog/.github/actions/setup-catalog-scanner
+      - id: distro-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.VANAHUB_DISTRIBUTOR_APP_ID }}
+          private-key: ${{ secrets.VANAHUB_DISTRIBUTOR_APP_PRIVATE_KEY }}
+          owner: Hildaware
+          repositories: vanahub-addon-distro
       - name: Re-scan and build unsigned index
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.distro-token.outputs.token }}
         run: |
           set -euo pipefail
           cmake -S product -B product/build/profile -DVH_BUILD_ENGINE=OFF -DVH_BUILD_TESTS=OFF
@@ -92,16 +100,12 @@ jobs:
             if [[ -f "$provenance" && "$(jq -r '.distributorRepository // empty' "$provenance")" == "https://github.com/Hildaware/vanahub-addon-distro" ]]; then
               is_distro_handoff=true
             fi
-            if [[ -f "$provenance" && "$(jq -r '.distributionMethod // empty' "$provenance")" == "vanahub-build" ]]; then
-              jq '.sourceUrl = "https://github.com/Hildaware/vanahub-addon-distro"' "$manifest" > "publish-scan-reports/$id.manifest.json"
-              scan_manifest="publish-scan-reports/$id.manifest.json"
-            fi
             if [[ "$is_distro_handoff" == true ]]; then
               distro_commit=$(jq -er .distroCommit "$provenance")
               [[ "$distro_commit" =~ ^[0-9a-f]{40}$ ]]
               checkout="distro-review-cache/$distro_commit"
               if [[ ! -d "$checkout/.git" ]]; then
-                git clone --quiet --no-checkout --filter=blob:none https://github.com/Hildaware/vanahub-addon-distro "$checkout"
+                gh repo clone Hildaware/vanahub-addon-distro "$checkout" -- --quiet --no-checkout --filter=blob:none
                 git -C "$checkout" checkout --quiet --detach "$distro_commit"
               fi
               version=$(jq -er .version "$manifest")

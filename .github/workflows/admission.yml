@@ -112,10 +112,6 @@ jobs:
           if [[ -f provenance.json ]]; then args+=(--provenance provenance.json); fi
           python3 "${args[@]}"
           scan_manifest=manifest.json
-          if [[ -f provenance.json && "$(jq -r '.distributionMethod // empty' provenance.json)" == "vanahub-build" ]]; then
-            jq '.sourceUrl = "https://github.com/Hildaware/vanahub-addon-distro"' manifest.json > scan-manifest.json
-            scan_manifest=scan-manifest.json
-          fi
           bash product/tools/scan_catalog_package.sh \
             "$scan_manifest" scan-report.json catalog-base/reviews semantic-review
       - name: Detect a completed scan report
