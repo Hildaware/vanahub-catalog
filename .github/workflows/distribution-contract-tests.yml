@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/**
+      - .github/actions/**
       - scripts/community_distribution.py
       - tests/test_community_distribution.py
       - tests/test_distribution_pipeline.py
