@@ -1,0 +1,20 @@
+{
+  "catalogSubmissionIssue": 27,
+  "distributionMethod": "upstream-asset",
+  "distributorRepository": "https://github.com/Hildaware/vanahub-addon-distro",
+  "distroCommit": "a9cfa3f80db6a1a5baf489841e67b39de368cfa9",
+  "distroIssue": 11,
+  "license": "GPL-3.0",
+  "packageId": "status-timers",
+  "schemaVersion": 2,
+  "upstreamAsset": {
+    "id": 214915003,
+    "name": "statustimers_v4.1.503.zip",
+    "url": "https://github.com/HealsCodes/statustimers/releases/download/v4.1.503/statustimers_v4.1.503.zip"
+  },
+  "upstreamCommit": "97bd4dbc224ed4d799ca6477cf0906f5f731504f",
+  "upstreamReleaseId": 191965885,
+  "upstreamReleaseUrl": "https://github.com/HealsCodes/statustimers/releases/tag/v4.1.503",
+  "upstreamRepository": "https://github.com/HealsCodes/statustimers",
+  "upstreamTag": "v4.1.503"
+}

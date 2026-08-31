@@ -1,0 +1,15 @@
+{
+  "files": {
+    "compat.lua": "1d31026ad3330308b0dd6d280368a228b5d7303766d0ebbe68f7fe868ba30969",
+    "conf_filters_ui.lua": "80f8b3bf7da7488b7beda1339d0df71ecb716944de83db88f19c478673536f63",
+    "conf_ui.lua": "495fc670bfb5c2bfe63d4ad3dcf1ea792d08f0cafd4d5127a53680ac53c4b9ed",
+    "helpers.lua": "eb430ace6bbbafd352b7093a1f462f6a108620f26fb1af3c2b22f8481d473247",
+    "main_ui.lua": "203e1330dca3ed067b8b51092259a8ba8359c1412ebe4410e679a7bcbfb4d696",
+    "party.lua": "c1f0ba83b76232e4ede21ce377e95fb83229d439041caf4b265df802db96fbd4",
+    "resources.lua": "f4ef51151d5d3b783db00ca3912f876306b771748445c4e03277c67e27c1ddd4"
+  },
+  "findings": [],
+  "packageId": "status-timers",
+  "reviewedCommit": "97bd4dbc224ed4d799ca6477cf0906f5f731504f",
+  "schemaVersion": 1
+}

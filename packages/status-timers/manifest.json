@@ -1,0 +1,33 @@
+{
+  "archiveRoot": "addons/statustimers",
+  "author": "HealsCodes",
+  "categories": [
+    "user-interface",
+    "quality-of-life"
+  ],
+  "changelog": "- adds a static tooltip window if a status is focussed using the keyboard (#16)\r\n  (the window is a regular ImGUI window and can be dragged using the mouse, it will remember it's last position)\r\n\r\n- implements automatic hiding in the following situations (#17):\r\n  - if the player is zoning / not logged in\r\n  - if the player is in an event / a cutscene\r\n  - if the map is open\r\n  - if the log window is maximised\r\n\r\n  ",
+  "compressedSize": 30495,
+  "declaredCapabilities": [
+    "bundled-file-read",
+    "chat-output",
+    "command-handler",
+    "settings-write",
+    "ui"
+  ],
+  "description": "This addon provides a configurable replacement for the in-game status icons in FFXI for use with Ashita v4.",
+  "downloadUrl": "https://github.com/HealsCodes/statustimers/releases/download/v4.1.503/statustimers_v4.1.503.zip",
+  "entrypoint": "statustimers.lua",
+  "id": "status-timers",
+  "maintainers": [
+    "bferrari352"
+  ],
+  "name": "Status Timers",
+  "schemaVersion": 1,
+  "sha256": "e0e8d0fee6a964b86592097c210b70ff334cef5985ec22cd988f4dc0a3cb6967",
+  "sourceUrl": "https://github.com/HealsCodes/statustimers",
+  "targets": [
+    "retail",
+    "horizon"
+  ],
+  "version": "4.1.503"
+}
