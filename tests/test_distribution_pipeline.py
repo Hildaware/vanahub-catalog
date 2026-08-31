@@ -57,6 +57,14 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("cancel-in-progress: true", source)
         self.assertIn("--allow-community-review", source)
         self.assertIn('review_root=reviews', source)
+        self.assertIn('"github-actions[bot]"', source)
+
+    def test_publish_keeps_private_distro_clone_authenticated(self):
+        source = self.workflow("publish.yml")
+        self.assertIn(
+            'git -C "$checkout" remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/Hildaware/vanahub-addon-distro.git"',
+            source,
+        )
 
     def test_every_catalog_push_uses_explicit_token_remote(self):
         for path in (ROOT / ".github" / "workflows").glob("*.yml"):

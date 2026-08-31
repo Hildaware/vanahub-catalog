@@ -52,9 +52,13 @@ jobs:
           owner=$(jq -r .headRepositoryOwner.login <<< "$details")
           resolved_head=$(jq -r .headRefOid <<< "$details")
           automated=false
+          trusted_actor=false
+          if [[ "$actor" == "app/github-actions" || "$actor" == "github-actions[bot]" ]]; then
+            trusted_actor=true
+          fi
           if [[ "$owner" == "${VH_REPOSITORY%%/*}" && \
                 "$head" == automation/* && \
-                "$actor" == "app/github-actions" ]]; then
+                "$trusted_actor" == "true" ]]; then
             if [[ "$VH_EVENT_NAME" == "pull_request_target" || \
                   ("$resolved_head" == "$VH_EXPECTED_HEAD" && "$VH_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$) ]]; then
               automated=true

@@ -14,6 +14,7 @@ class ProfileWorkflowTests(unittest.TestCase):
         admission = self.text("profile-admission.yml")
         self.assertIn("pull_request_review:", admission)
         self.assertIn("github.event.review.commit_id", admission)
+        self.assertIn("startsWith(github.event.pull_request.head.ref, 'automation/profile/')", admission)
         self.assertIn('test "$(jq -r .headRefOid <<< "$details")" = "$VH_EXPECTED_HEAD"', admission)
         self.assertNotIn("gh workflow run profile-admission.yml", prepare)
 

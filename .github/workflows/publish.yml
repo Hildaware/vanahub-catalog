@@ -106,6 +106,7 @@ jobs:
               checkout="distro-review-cache/$distro_commit"
               if [[ ! -d "$checkout/.git" ]]; then
                 gh repo clone Hildaware/vanahub-addon-distro "$checkout" -- --quiet --no-checkout --filter=blob:none
+                git -C "$checkout" remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/Hildaware/vanahub-addon-distro.git"
                 git -C "$checkout" checkout --quiet --detach "$distro_commit"
               fi
               version=$(jq -er .version "$manifest")
