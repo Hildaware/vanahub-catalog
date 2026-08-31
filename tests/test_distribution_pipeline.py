@@ -14,11 +14,13 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("workflow_dispatch:", source)
         self.assertIn("issue_number:", source)
         self.assertIn("distro-semantic-attestation.json", source)
+        self.assertIn("distro-semantic-baseline.json", source)
         self.assertIn("scanner-drift.json", source)
         self.assertIn("retention-days: 90", source)
         self.assertIn("gh workflow run admission.yml", source)
         self.assertIn("expected_head_sha=\"$head_sha\"", source)
         self.assertIn("catalog:prepared", source)
+        self.assertIn('"reviews/$id.json"', source)
         self.assertIn("actions: write", source)
 
     def test_release_intake_is_consolidated_and_dispatches_exact_heads(self):
@@ -53,6 +55,8 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         source = self.workflow("admission.yml")
         self.assertIn("group: catalog-admission-${{ inputs.pr_number || github.event.pull_request.number }}", source)
         self.assertIn("cancel-in-progress: true", source)
+        self.assertIn("--allow-community-review", source)
+        self.assertIn('review_root=reviews', source)
 
     def test_every_catalog_push_uses_explicit_token_remote(self):
         for path in (ROOT / ".github" / "workflows").glob("*.yml"):

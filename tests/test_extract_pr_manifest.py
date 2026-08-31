@@ -66,6 +66,17 @@ class ExtractManifestTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "may not change"):
             extract.constrained_paths(["packages/sample/manifest.json", path], False)
+
+    def test_only_trusted_automation_may_add_a_community_review_baseline(self):
+        review = "reviews/sample.json"
+        manifest, media, provenance = extract.constrained_paths(
+            ["packages/sample/manifest.json", "packages/sample/provenance.json", review], True, True, True
+        )
+        self.assertEqual(manifest, "packages/sample/manifest.json")
+        self.assertEqual(media, [])
+        self.assertEqual(provenance, "packages/sample/provenance.json")
+        with self.assertRaisesRegex(ValueError, "review baseline"):
+            extract.constrained_paths(["packages/sample/manifest.json", "packages/sample/provenance.json", review], True, True)
         with self.assertRaisesRegex(ValueError, "invalid"):
             extract.validate_provenance(
                 b'{"schemaVersion":1,"packageId":"other","submissionIssue":12}',

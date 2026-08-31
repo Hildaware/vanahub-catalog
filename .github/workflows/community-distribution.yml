@@ -135,6 +135,7 @@ jobs:
             handoff.json
             manifest.json
             provenance.json
+            distro-semantic-baseline.json
             distro-semantic-attestation.json
             scanner-drift.json
             scan-report.json
@@ -181,10 +182,11 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch -C "$branch" origin/main
-          mkdir -p "packages/$id"
+          mkdir -p "packages/$id" reviews
           cp validated/manifest.json "packages/$id/manifest.json"
           cp validated/provenance.json "packages/$id/provenance.json"
-          git add "packages/$id/manifest.json" "packages/$id/provenance.json"
+          cp validated/distro-semantic-baseline.json "reviews/$id.json"
+          git add "packages/$id/manifest.json" "packages/$id/provenance.json" "reviews/$id.json"
           if ! git diff --cached --quiet; then
             git commit -m "Publish $id $version"
             git push --force-with-lease --set-upstream origin "$branch"
@@ -199,7 +201,7 @@ jobs:
           [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
           gh workflow run admission.yml --ref main -f pr_number="$pr" -f expected_head_sha="$head_sha"
           gh label create 'catalog:prepared' --color 8250df --description 'Catalog candidate prepared for exact-head admission' --force
-          gh issue edit "$ISSUE" --add-label 'catalog:prepared' --remove-label 'catalog:admitted' --remove-label 'handoff:pending'
+          gh issue edit "$ISSUE" --add-label 'catalog:prepared' --remove-label 'catalog:admitted' --remove-label 'handoff:pending' || true
           gh issue comment "$ISSUE" --body "Catalog preparation passed for \`$id $version\` (artifact \`$ARTIFACT_SHA\`, policy drift: \`$POLICY_DRIFT\`). Prepared PR #$pr and dispatched exact-head admission at \`$head_sha\`."
 
   notify-failure:

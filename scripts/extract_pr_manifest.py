@@ -49,7 +49,7 @@ def validate_catalog_media_references(manifest: dict, media_base: str) -> None:
     catalog_media_paths(manifest, media_base)
 
 
-def constrained_paths(paths: list[str], allow_media: bool, allow_provenance: bool = False) -> tuple[str, list[str], str | None]:
+def constrained_paths(paths: list[str], allow_media: bool, allow_provenance: bool = False, allow_community_review: bool = False) -> tuple[str, list[str], str | None]:
     manifests = [path for path in paths if re.fullmatch(r"packages/[a-z0-9][a-z0-9._-]{1,63}/manifest\.json", path)]
     if len(manifests) != 1:
         raise ValueError("Routine admission PRs must change exactly one package manifest")
@@ -57,9 +57,15 @@ def constrained_paths(paths: list[str], allow_media: bool, allow_provenance: boo
     package_id = manifest_path.split("/")[1]
     provenance_path = f"packages/{package_id}/provenance.json"
     provenance = provenance_path if provenance_path in paths else None
+    review_path = f"reviews/{package_id}.json"
+    review = review_path if review_path in paths else None
     if provenance and not allow_provenance:
         raise ValueError("Maintainer admission PRs may not change package provenance")
-    media = [path for path in paths if path not in {manifest_path, provenance_path}]
+    if review and not allow_community_review:
+        raise ValueError("Only trusted community distribution automation may add a review baseline")
+    if review and not provenance:
+        raise ValueError("A community review baseline requires package provenance")
+    media = [path for path in paths if path not in {manifest_path, provenance_path, review_path}]
     if media and not allow_media:
         raise ValueError("Maintainer admission PRs may not add catalog media")
     if len(media) > 11 or any(
@@ -70,7 +76,7 @@ def constrained_paths(paths: list[str], allow_media: bool, allow_provenance: boo
     return manifest_path, media, provenance
 
 
-def validate_provenance(content: bytes, package_id: str) -> None:
+def validate_provenance(content: bytes, package_id: str) -> dict:
     if len(content) > 4096:
         raise ValueError("package provenance exceeds the 4 KiB admission limit")
     document = json.loads(content)
@@ -80,7 +86,7 @@ def validate_provenance(content: bytes, package_id: str) -> None:
         issue = document.get("submissionIssue")
         if document.get("packageId") != package_id or not isinstance(issue, int) or isinstance(issue, bool) or issue < 1:
             raise ValueError("package provenance is invalid")
-        return
+        return document
     required = {
         "schemaVersion", "packageId", "distributionMethod", "distributorRepository", "distroIssue",
         "distroCommit", "upstreamRepository", "upstreamReleaseId", "upstreamReleaseUrl", "upstreamTag",
@@ -98,6 +104,21 @@ def validate_provenance(content: bytes, package_id: str) -> None:
     asset = document.get("upstreamAsset")
     if not isinstance(asset, dict) or set(asset) != {"id", "name", "url"}:
         raise ValueError("community upstream-asset provenance is invalid")
+    return document
+
+
+def validate_community_review(content: bytes, package_id: str, provenance: dict) -> None:
+    if provenance.get("distributorRepository") != "https://github.com/Hildaware/vanahub-addon-distro":
+        raise ValueError("only community distribution provenance may carry a review baseline")
+    document = json.loads(content)
+    if (
+        document.get("schemaVersion") != 1
+        or document.get("packageId") != package_id
+        or document.get("reviewedCommit") != provenance.get("upstreamCommit")
+        or not isinstance(document.get("files"), dict)
+        or set(document) - {"schemaVersion", "packageId", "reviewedCommit", "files", "findings"}
+    ):
+        raise ValueError("community review baseline is invalid")
 
 
 def validate_media(path: str, content: bytes, manifest: dict, media_base: str) -> None:
@@ -139,12 +160,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-media", action="store_true")
     parser.add_argument("--allow-provenance", action="store_true")
     parser.add_argument("--media-base", default="https://hildaware.github.io/vanahub-catalog/media")
+    parser.add_argument("--allow-community-review", action="store_true")
     args = parser.parse_args(argv)
     changed = json.loads(Path(args.changed).read_text(encoding="utf-8"))
     paths = [item["filename"] for item in changed]
     try:
         manifest_path, media_paths, provenance_path = constrained_paths(
-            paths, args.allow_media, args.allow_provenance
+            paths, args.allow_media, args.allow_provenance, args.allow_community_review
         )
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
@@ -158,9 +180,17 @@ def main(argv: list[str] | None = None) -> int:
     if manifest.get("id") != package_id:
         raise SystemExit("manifest id must match its catalog package directory")
     try:
+        provenance = None
         if provenance_path:
-            validate_provenance(
+            provenance = validate_provenance(
                 github_content(args.repository, provenance_path, args.ref, token), package_id
+            )
+        review_path = f"reviews/{package_id}.json"
+        if review_path in paths:
+            if provenance is None:
+                raise ValueError("community review baseline requires provenance")
+            validate_community_review(
+                github_content(args.repository, review_path, args.ref, token), package_id, provenance
             )
         referenced_media = catalog_media_paths(manifest, args.media_base)
         if any(path not in referenced_media for path in media_paths):

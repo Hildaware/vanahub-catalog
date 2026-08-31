@@ -84,11 +84,18 @@ jobs:
           python3 -m pip install --require-hashes --requirement catalog-base/requirements-image.txt
           gh api --paginate "repos/${VH_REPOSITORY}/pulls/${VH_PR}/files" > changed.json
           media=()
-          if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then media+=(--allow-media --allow-provenance); fi
+          if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then media+=(--allow-media --allow-provenance --allow-community-review); fi
           python3 catalog-base/scripts/extract_pr_manifest.py changed.json "$VH_REPOSITORY" "$VH_HEAD_SHA" manifest.json "${media[@]}"
           if [[ "${{ steps.context.outputs.automated }}" == "true" ]]; then
             id=$(jq -er .id manifest.json)
-            if gh api "repos/${VH_REPOSITORY}/contents/packages/$id/provenance.json?ref=${VH_HEAD_SHA}" --jq .content | base64 --decode > provenance.json 2>/dev/null; then :; else rm -f provenance.json; fi
+            if gh api "repos/${VH_REPOSITORY}/contents/packages/$id/provenance.json?ref=${VH_HEAD_SHA}" --jq .content | base64 --decode > provenance.json 2>/dev/null; then
+              if [[ "$(jq -r '.distributorRepository // empty' provenance.json)" == "https://github.com/Hildaware/vanahub-addon-distro" ]]; then
+                mkdir -p reviews
+                gh api "repos/${VH_REPOSITORY}/contents/reviews/$id.json?ref=${VH_HEAD_SHA}" --jq .content | base64 --decode > "reviews/$id.json"
+              fi
+            else
+              rm -f provenance.json
+            fi
           fi
       - name: Verify and scan
         id: scan
@@ -112,8 +119,11 @@ jobs:
           if [[ -f provenance.json ]]; then args+=(--provenance provenance.json); fi
           python3 "${args[@]}"
           scan_manifest=manifest.json
+          id=$(jq -er .id manifest.json)
+          review_root=catalog-base/reviews
+          if [[ -f "reviews/$id.json" ]]; then review_root=reviews; fi
           bash product/tools/scan_catalog_package.sh \
-            "$scan_manifest" scan-report.json catalog-base/reviews semantic-review
+            "$scan_manifest" scan-report.json "$review_root" semantic-review
       - name: Detect a completed scan report
         id: report
         if: always()
@@ -172,6 +182,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ needs.scan.outputs.head_sha }}
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
