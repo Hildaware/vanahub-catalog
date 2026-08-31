@@ -10,10 +10,12 @@ class SemanticWorkflowTests(unittest.TestCase):
         return (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
 
     def test_every_package_boundary_runs_the_semantic_wrapper(self):
-        for workflow in ("submission.yml", "discover.yml", "admission.yml", "publish.yml"):
+        action = (ROOT / ".github" / "actions" / "setup-catalog-scanner" / "action.yml").read_text(encoding="utf-8")
+        self.assertIn("semgrep==1.175.0", action)
+        for workflow in ("discover.yml", "admission.yml", "publish.yml"):
             with self.subTest(workflow=workflow):
                 source = self.workflow(workflow)
-                self.assertIn("semgrep==1.175.0", source)
+                self.assertIn("setup-catalog-scanner", source)
                 self.assertIn("scan_catalog_package.sh", source)
 
     def test_admission_uses_only_the_trusted_base_review_directory(self):
