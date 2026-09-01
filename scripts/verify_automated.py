@@ -77,7 +77,12 @@ def main() -> int:
     previous_path = args.previous_root / manifest.get("id", "") / "manifest.json"
     if previous_path.exists():
         previous = json.loads(previous_path.read_text(encoding="utf-8"))
-        if not greater(manifest.get("version", ""), previous.get("version", "")):
+        same_version_replacement = (
+            community
+            and manifest.get("version") == previous.get("version")
+            and manifest.get("sha256") != previous.get("sha256")
+        )
+        if not greater(manifest.get("version", ""), previous.get("version", "")) and not same_version_replacement:
             raise SystemExit("updates must increase the package SemVer")
     print(f"authorized catalog automation for {manifest['id']}")
     return 0

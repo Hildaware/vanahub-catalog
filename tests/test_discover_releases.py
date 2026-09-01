@@ -29,6 +29,42 @@ class DiscoveryTests(unittest.TestCase):
         self.assertTrue(verify.greater("1.0.0-rc.1", "1.0.0-1"))
         self.assertFalse(verify.greater("1.0.0-1", "1.0.0-rc.1"))
 
+    def test_verified_distro_may_replace_a_changed_same_version_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous_root = root / "previous"
+            package = previous_root / "packages" / "sample"
+            package.mkdir(parents=True)
+            source_url = "https://github.com/author/sample"
+            download_url = "https://github.com/author/sample/releases/download/v1.0.0/sample.zip"
+            (package / "manifest.json").write_text(json.dumps({
+                "id": "sample", "version": "1.0.0", "sha256": "a" * 64,
+            }), encoding="utf-8")
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text(json.dumps({
+                "id": "sample", "version": "1.0.0", "sha256": "b" * 64,
+                "sourceUrl": source_url, "downloadUrl": download_url, "maintainers": ["author"],
+            }), encoding="utf-8")
+            provenance_path = root / "provenance.json"
+            provenance_path.write_text(json.dumps({
+                "schemaVersion": 2,
+                "packageId": "sample",
+                "distributorRepository": "https://github.com/Hildaware/vanahub-addon-distro",
+                "upstreamRepository": source_url,
+                "distributionMethod": "upstream-asset",
+                "upstreamAsset": {"url": download_url},
+            }), encoding="utf-8")
+            with mock.patch.object(sys, "argv", [
+                "verify_automated.py", str(manifest_path), "--previous-root", str(previous_root / "packages"),
+                "--provenance", str(provenance_path),
+            ]):
+                self.assertEqual(verify.main(), 0)
+            with mock.patch.object(sys, "argv", [
+                "verify_automated.py", str(manifest_path), "--previous-root", str(previous_root / "packages"),
+            ]), mock.patch.object(verify, "authorization", return_value={"author"}):
+                with self.assertRaisesRegex(SystemExit, "increase the package SemVer"):
+                    verify.main()
+
     def test_issue_form_fields(self):
         event = {"issue": {"user": {"login": "author"}, "body": "### Repository URL\n\nhttps://github.com/author/sample\n\n### Package ID\n\nsample\n\n### Confirmation\n\n- [x] yes"}}
         self.assertEqual(discover.issue_fields(event), ("https://github.com/author/sample", "sample", "author"))
