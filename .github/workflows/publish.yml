@@ -275,6 +275,6 @@ jobs:
               continue
             fi
             gh issue edit "$issue" --add-label published --remove-label 'catalog:prepared' --remove-label 'catalog:admitted' --remove-label 'handoff:pending' || true
-            gh issue comment "$issue" --body "Published \`$id $version\` to the catalog with artifact SHA-256 \`$sha\`."
+            gh issue comment "$issue" --body "Catalog publication complete: **$id $version** has been merged into the catalog and deployed. Artifact SHA-256: \`$sha\`."
             gh issue close "$issue" --reason completed || true
           done

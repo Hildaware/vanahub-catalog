@@ -54,6 +54,8 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("community_distribution.py audit", source)
         self.assertIn("reconcile-community-distributions:", source)
         self.assertIn("--add-label published", source)
+        self.assertIn("Catalog publication complete:", source)
+        self.assertIn("has been merged into the catalog and deployed", source)
         self.assertIn("group: catalog-publish", source)
         self.assertIn("Semantic findings retained for $id and do not block trusted distro publication.", source)
         self.assertIn("The advisory re-scan for $id produced no semantic report; the trusted distro attestation remains publication evidence.", source)
