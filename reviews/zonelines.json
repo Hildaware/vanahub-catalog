@@ -1,0 +1,81 @@
+{
+  "files": {
+    "SQLCommit-ZoneLines-ffb6a8f/gdifonts/include.lua": "bbbae9a9e2c93a854fc8dca4e633c33da9fe3425c69dabd5e73097df94a88565",
+    "SQLCommit-ZoneLines-ffb6a8f/zonelines.lua": "f8dd7f44d95293e21f2ea6d30e7933f8043f9f0bea49de97e5ee867cdc45b1be"
+  },
+  "findings": [
+    {
+      "capability": "native-interop",
+      "line": 20,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "SQLCommit-ZoneLines-ffb6a8f/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 53,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "SQLCommit-ZoneLines-ffb6a8f/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 19,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "SQLCommit-ZoneLines-ffb6a8f/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "SQLCommit-ZoneLines-ffb6a8f/zonelines.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 19,
+      "message": "Addon loads and executes Lua code dynamically.",
+      "method": "<top-level>",
+      "path": "SQLCommit-ZoneLines-ffb6a8f/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.dynamic-code"
+    },
+    {
+      "capability": "native-interop",
+      "line": 20,
+      "message": "Addon loads a native library dynamically.",
+      "method": "<top-level>",
+      "path": "SQLCommit-ZoneLines-ffb6a8f/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-library-load"
+    },
+    {
+      "capability": "native-interop",
+      "line": 53,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "<top-level>",
+      "path": "SQLCommit-ZoneLines-ffb6a8f/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    }
+  ],
+  "packageId": "zonelines",
+  "reviewedCommit": "ffb6a8f029cbe544243ec3d5d5e056c6e0565d8d",
+  "schemaVersion": 1
+}
