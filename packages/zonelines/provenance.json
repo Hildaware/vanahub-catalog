@@ -1,0 +1,20 @@
+{
+  "catalogSubmissionIssue": 31,
+  "distributionMethod": "upstream-asset",
+  "distributorRepository": "https://github.com/Hildaware/vanahub-addon-distro",
+  "distroCommit": "2420a21e550724897e71fa8b4cfc645ae9dea2aa",
+  "distroIssue": 9,
+  "license": "MIT",
+  "packageId": "zonelines",
+  "schemaVersion": 2,
+  "upstreamAsset": {
+    "id": 339280359,
+    "name": "v1.3.0-source.zip",
+    "url": "https://api.github.com/repos/SQLCommit/ZoneLines/zipball/v1.3.0"
+  },
+  "upstreamCommit": "ffb6a8f029cbe544243ec3d5d5e056c6e0565d8d",
+  "upstreamReleaseId": 339280359,
+  "upstreamReleaseUrl": "https://github.com/SQLCommit/ZoneLines/releases/tag/v1.3.0",
+  "upstreamRepository": "https://github.com/SQLCommit/zonelines",
+  "upstreamTag": "v1.3.0"
+}

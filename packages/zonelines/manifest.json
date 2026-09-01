@@ -1,0 +1,34 @@
+{
+  "archiveRoot": "",
+  "author": "SQLCommit",
+  "categories": [
+    "user-interface"
+  ],
+  "changelog": "## v1.3.0\r\n\r\n### Clean Label Text (GdiFonts)\r\n- **Rewrote label rendering** - Zone-line labels now render via GdiFonts (GDI+) to per-string textures drawn as depth-tested billboards, replacing the borrowed ImGui font atlas. Text is sharp at any distance with no bleed or softening, and is still occluded correctly behind walls and terrain\r\n- **Fixed fog tint on labels** - Zone fog no longer tints label text or outlines (`D3DRS_FOGENABLE` is now saved and restored around the marker pass)\r\n- **Fixed white edge fringe** - Raised the alpha-test reference so the transparent label border no longer bleeds a faint white edge\r\n\r\n### Custom Font System\r\n- **Font picker** - New Font selector in Labels offers a set of common Windows fonts plus any TTF/OTF you place in `fonts/` (and have installed), with a **Bold** toggle alongside it\r\n- **Outline thickness slider** - Label outline is now an adjustable slider instead of an on/off toggle\r\n- **Bundled optional fonts** - Ships Grammara, Mystic Gate, and Oswald in `fonts/` with an install readme. The addon never installs fonts itself (read-only by design); the picker only lists fonts you have actually installed, so there are no blank labels\r\n\r\n### Performance\r\n- **Curtain position cache** - Per-zone-line dot positions (terrain interpolation, 3-pass smoothing, gradient flattening, and table allocations) are now cached and reused across frames, recomputing only when settings change or the player crosses a zone line. In busy areas with many visible zone lines this removes nearly all of the per-frame work from the heaviest rendering path\r\n\r\n### Bug Fixes\r\n- **Fixed COM texture reference leak** - The D3D8 state save called `GetTexture` without releasing the returned (AddRef'd) reference, slowly accumulating VRAM across zone changes over a long session. The reference is now released each frame\r\n- **Fixed alpha-test state leak** - `ALPHAREF` / `ALPHAFUNC` set during the label pass are now saved and restored, so they no longer leak into the game's world rendering (foliage, fence, and hair alpha cutouts)\r\n- **Hardened override reads** - Per-zone-line override keys (`trim` / `hide` / `height`) are now type-guarded against LuaJIT `T{}` sugar-method collisions, matching the existing `flatten` / `pole_height` guards\r\n- **Case-insensitive commands** - `/ZL` and other mixed-case spellings now work\r\n\r\n### Internals\r\n- **Single source of truth for defaults** - Collapsed several divergent copies of the default values into one `default_settings` table that every sync path and UI buffer reads from\r\n- **Reliable `/addon reload`** - The entry script clears the `package.loaded` cache for its submodules so reloads pick up edits to them\r\n- **Removed dead \"Text Outline\" setting** - Replaced by the outline-thickness slider; the orphaned key is stripped from saved settings on load\r\n- **Reset to Defaults preserves overrides** - Resetting no longer wipes your per-zone-line tweaks\r\n- **Safer saves** - All `settings.save()` calls are wrapped in `pcall`\r\n",
+  "compressedSize": 249744,
+  "declaredCapabilities": [
+    "bundled-file-read",
+    "chat-output",
+    "command-handler",
+    "game-state-read",
+    "packet-read",
+    "settings-write",
+    "ui"
+  ],
+  "description": "FFXI - Ashita v4.3 Addon - Zone Line Visualizer",
+  "downloadUrl": "https://api.github.com/repos/SQLCommit/ZoneLines/zipball/v1.3.0",
+  "entrypoint": "zonelines.lua",
+  "id": "zonelines",
+  "maintainers": [
+    "Hildaware"
+  ],
+  "name": "ZoneLines",
+  "schemaVersion": 1,
+  "sha256": "62b0d12fcaa70f376c60b05e2e4a3108bdaeebeecfa2fe1a03e0ac78d900fcab",
+  "sourceUrl": "https://github.com/SQLCommit/zonelines",
+  "targets": [
+    "retail",
+    "horizon"
+  ],
+  "version": "1.3.0"
+}
