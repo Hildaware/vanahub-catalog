@@ -50,6 +50,7 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("reconcile-community-distributions:", source)
         self.assertIn("--add-label published", source)
         self.assertIn("group: catalog-publish", source)
+        self.assertIn("Semantic findings retained for $id and do not block publication.", source)
 
     def test_admission_serializes_each_pull_request(self):
         source = self.workflow("admission.yml")
@@ -58,6 +59,7 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("--allow-community-review", source)
         self.assertIn('review_root=reviews', source)
         self.assertIn('"github-actions[bot]"', source)
+        self.assertIn("Semantic findings are retained for audit and do not block catalog admission.", source)
 
     def test_publish_keeps_private_distro_clone_authenticated(self):
         source = self.workflow("publish.yml")

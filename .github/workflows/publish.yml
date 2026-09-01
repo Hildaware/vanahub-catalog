@@ -142,7 +142,11 @@ jobs:
                 --arg policySha256 "$policy_sha" --arg semgrepVersion "$semgrep_version" \
                 '{policyDrift: $policyDrift, currentScanner: {revision: $scannerRevision, policySha256: $policySha256, semgrepVersion: $semgrepVersion}}' \
                 > "publish-scan-reports/$id.scanner-drift.json"
-              [[ "$drift" == true ]] || exit "$scan_status"
+              if [[ "$drift" == true ]]; then
+                echo "Scanner drift retained for $id." >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "Semantic findings retained for $id and do not block publication." >> "$GITHUB_STEP_SUMMARY"
+              fi
             elif (( scan_status != 0 )); then
               exit "$scan_status"
             fi

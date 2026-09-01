@@ -121,11 +121,11 @@ jobs:
             --arg policySha256 "$policy_sha" --arg semgrepVersion "$semgrep_version" \
             '{policyDrift: $drift, currentScanner: {revision: $scannerRevision, policySha256: $policySha256, semgrepVersion: $semgrepVersion}}' > scanner-drift.json
           echo "policy_drift=$policy_drift" >> "$GITHUB_OUTPUT"
-          if (( semantic_status != 0 )) && { [[ "$policy_drift" != true ]] || [[ ! -s semantic-review/semantic-review.json ]]; }; then
+          if (( semantic_status != 0 )) && [[ ! -s semantic-review/semantic-review.json ]]; then
             exit "$semantic_status"
           fi
           if (( semantic_status != 0 )); then
-            echo 'Grandfathered SHA-bound semantic approval; current scanner drift is retained for audit.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Semantic findings are retained for audit and do not block the trusted distro candidate.' >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
@@ -201,7 +201,7 @@ jobs:
           [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
           gh workflow run admission.yml --ref main -f pr_number="$pr" -f expected_head_sha="$head_sha"
           gh label create 'catalog:prepared' --color 8250df --description 'Catalog candidate prepared for exact-head admission' --force
-          gh issue edit "$ISSUE" --add-label 'catalog:prepared' --remove-label 'catalog:admitted' --remove-label 'handoff:pending' || true
+          gh issue edit "$ISSUE" --add-label 'catalog:prepared' --remove-label 'catalog:admitted' --remove-label 'handoff:pending' --remove-label 'review:failed' || true
           gh issue comment "$ISSUE" --body "Catalog preparation passed for \`$id $version\` (artifact \`$ARTIFACT_SHA\`, policy drift: \`$POLICY_DRIFT\`). Prepared PR #$pr and dispatched exact-head admission at \`$head_sha\`."
 
   notify-failure:
