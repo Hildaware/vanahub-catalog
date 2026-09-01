@@ -1,0 +1,20 @@
+{
+  "catalogSubmissionIssue": 35,
+  "distributionMethod": "upstream-asset",
+  "distributorRepository": "https://github.com/Hildaware/vanahub-addon-distro",
+  "distroCommit": "bbf7f8fcb48a1d019ed93057e30814a03ee7d23c",
+  "distroIssue": 19,
+  "license": "GPL-3.0",
+  "packageId": "fancy-chat-horizon",
+  "schemaVersion": 2,
+  "upstreamAsset": {
+    "id": 506610049,
+    "name": "FancyChat_1.0.260721_HorizonXI.zip",
+    "url": "https://github.com/ariel-logos/FancyChat/releases/download/1.0.260721/FancyChat_1.0.260721_HorizonXI.zip"
+  },
+  "upstreamCommit": "98ac1de312866d803b065a5275e6421f5197c0eb",
+  "upstreamReleaseId": 356180812,
+  "upstreamReleaseUrl": "https://github.com/ariel-logos/FancyChat/releases/tag/1.0.260721",
+  "upstreamRepository": "https://github.com/ariel-logos/Fancychat",
+  "upstreamTag": "1.0.260721"
+}

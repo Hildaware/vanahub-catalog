@@ -1,0 +1,33 @@
+{
+  "archiveRoot": "",
+  "author": "ariel-logos",
+  "categories": [
+    "user-interface"
+  ],
+  "changelog": "<p align=\"center\">\r\n<img width=\"256\" height=\"256\" alt=\"logo\" src=\"https://github.com/user-attachments/assets/aecd48ed-468b-49f3-848e-4772bdd705f8\" /></p><p align=\"center\">Version: 1.0.260721R<br>\r\nVersion: 1.0.260721H</p>\r\n\r\n**New Version notes**\r\n\r\n- Fixed several bugs about the UI and saved settings.\r\n- Fixed some maps naming issues.\r\n- Added a more robust handling of the font used by FanyChat.\r\n- Added support for future addons that could interact with FancyChat windows positions.\r\n- Fixed an issue that caused the chat font to not load in some instances.\r\n- Added support for HorizonXI private server.",
+  "compressedSize": 90677207,
+  "declaredCapabilities": [
+    "bundled-file-read",
+    "chat-output",
+    "command-handler",
+    "game-state-read",
+    "packet-read",
+    "settings-write",
+    "ui"
+  ],
+  "description": "Fancychat is an add-on for FFXI's third-party loader and hook Ashita (https://www.ashitaxi.com/).\n\nIt replaces FFXI's native chat with a customizable in-game chat overlay: messages are sorted into tabs, combat lines can be compacted into icon-based rows, timestamps are supported, links are clickable, the chat window can be themed and resized to taste, and there's a bundled set of FFXI zone maps you can pull up by Ctrl+clicking any chat line that mentions a zone name.",
+  "downloadUrl": "https://github.com/ariel-logos/FancyChat/releases/download/1.0.260721/FancyChat_1.0.260721_HorizonXI.zip",
+  "entrypoint": "fancychat.lua",
+  "id": "fancy-chat-horizon",
+  "maintainers": [
+    "Hildaware"
+  ],
+  "name": "Fancy Chat (HorizonXI)",
+  "schemaVersion": 1,
+  "sha256": "529eeccd97a1ea85de3f090a0c22db892090c052292916b2df053459de373b83",
+  "sourceUrl": "https://github.com/ariel-logos/Fancychat",
+  "targets": [
+    "horizon"
+  ],
+  "version": "1.0.260721"
+}
