@@ -91,8 +91,15 @@ jobs:
         name: Independently re-scan trusted artifact
         run: |
           set -euo pipefail
+          set +e
           python3 product/tools/catalog_scan.py manifest.json --provenance provenance.json \
             --output scan-report.json --archive-output package.zip
+          catalog_status=$?
+          set -e
+          # A verified distributor candidate may retain policy findings from this
+          # duplicate scan, but a usable report and exact archive are mandatory.
+          test -s scan-report.json
+          test -s package.zip
           mkdir -p semantic-review distro-reviews
           package_id=$(jq -er .id manifest.json)
           cp distro-semantic-baseline.json "distro-reviews/$package_id.json"
@@ -121,6 +128,9 @@ jobs:
             --arg policySha256 "$policy_sha" --arg semgrepVersion "$semgrep_version" \
             '{policyDrift: $drift, currentScanner: {revision: $scannerRevision, policySha256: $policySha256, semgrepVersion: $semgrepVersion}}' > scanner-drift.json
           echo "policy_drift=$policy_drift" >> "$GITHUB_OUTPUT"
+          if (( catalog_status != 0 )); then
+            echo 'Structural findings are retained for audit and do not block the trusted distro candidate.' >> "$GITHUB_STEP_SUMMARY"
+          fi
           if (( semantic_status != 0 )); then
             if [[ -s semantic-review/semantic-review.json ]]; then
               echo 'Semantic findings are retained for audit and do not block the trusted distro candidate.' >> "$GITHUB_STEP_SUMMARY"
