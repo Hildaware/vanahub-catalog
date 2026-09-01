@@ -68,6 +68,8 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("trusted_distro_handoff=false", source)
         self.assertIn('if [[ "$trusted_distro_handoff" != true ]]; then', source)
         self.assertIn('exit "$scan_status"', source)
+        self.assertIn('path: catalog-policy', source)
+        self.assertIn('catalog-policy/scripts/verify_automated.py', source)
         self.assertIn("Semantic findings are retained for audit and do not block trusted distro admission.", source)
         self.assertIn("The advisory catalog re-scan produced no semantic report; the trusted distro attestation remains attached to the PR.", source)
 

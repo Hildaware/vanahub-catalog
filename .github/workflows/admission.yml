@@ -75,6 +75,14 @@ jobs:
           ref: ${{ steps.context.outputs.base_sha }}
           path: catalog-base
           persist-credentials: false
+      - name: Check out the trusted admission policy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          # For pull_request_target this is the trusted base SHA; for an
+          # explicit retry it is the workflow ref selected by the dispatcher.
+          ref: ${{ github.sha }}
+          path: catalog-policy
+          persist-credentials: false
       - uses: ./catalog-base/.github/actions/setup-catalog-scanner
       - name: Obtain and constrain changed manifest as data
         env:
@@ -119,7 +127,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          args=(catalog-base/scripts/verify_automated.py manifest.json --previous-root catalog-base/packages)
+          args=(catalog-policy/scripts/verify_automated.py manifest.json --previous-root catalog-base/packages)
           if [[ -f provenance.json ]]; then args+=(--provenance provenance.json); fi
           python3 "${args[@]}"
           scan_manifest=manifest.json
