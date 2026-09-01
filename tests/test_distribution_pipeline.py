@@ -26,6 +26,7 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("test -s scan-report.json", source)
         self.assertIn("test -s package.zip", source)
         self.assertIn("Structural findings are retained for audit and do not block the trusted distro candidate.", source)
+        self.assertIn('branch="automation/$id/$version-${ARTIFACT_SHA:0:12}"', source)
 
     def test_release_intake_is_consolidated_and_dispatches_exact_heads(self):
         source = self.workflow("discover.yml")

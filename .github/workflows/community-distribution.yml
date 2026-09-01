@@ -189,7 +189,9 @@ jobs:
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           id=$(jq -er .id validated/manifest.json)
           version=$(jq -er .version validated/manifest.json)
-          branch="automation/$id/$version/${ARTIFACT_SHA:0:12}"
+          # Keep the variable portion in the final ref segment: an older
+          # automation/$id/$version branch cannot coexist with a child of it.
+          branch="automation/$id/$version-${ARTIFACT_SHA:0:12}"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch -C "$branch" origin/main
