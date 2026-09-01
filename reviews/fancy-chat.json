@@ -1,0 +1,933 @@
+{
+  "files": {
+    "fancychat/fancychat.lua": "a67575a7710934495aea715a71cd2dcd7cee4fb90ae855c1ef00faade6c8b139",
+    "fancychat/gdifonts/encoding.lua": "93713eedcbab1c33439c0e95bbdb29a408f2490f4e8bfae94c8db4514239d594",
+    "fancychat/gdifonts/include.lua": "7ea061f3d53fec77a82f5382fc91adb6ea917915c1fea3ed2da11f28f0346c03",
+    "fancychat/lib/bigmode.lua": "9854f0bf0effd91cc5386cdb6498c18abb9f89f695f55b84f6369dde1167e34e",
+    "fancychat/lib/buffer.lua": "6074a314029257b0ff2f205f2bbee66d609fa138a636e03910ce283039b2dfd7",
+    "fancychat/lib/combat.lua": "81d78c6c531d70f62d5a426d19199a5b9f5efe075b5f5c7668ef928ba74cbd34",
+    "fancychat/lib/input.lua": "ebc289e8fe456d414c536bed1fa8b6b73c501163cf98a89826cb44f2c8778ac8",
+    "fancychat/lib/lifecycle.lua": "3ab49e210457c67c1b888a345b906abde26fcefbfc707423262ae7472032aaba",
+    "fancychat/lib/parser.lua": "6bfa9bb30f418acdbd696506ff0e260047736ed9b8a5c373225e62f68b6b8228",
+    "fancychat/lib/render.lua": "fb8ffdca6d9d0ae5188a39c7d7e5cd33f53a8603255d41cede3eb33c5c6dcc0d",
+    "fancychat/lib/ui_helpers.lua": "db1f369edfb47f88cb44851620700d10a0c12eb236909e58ef29ab735f89b2e6",
+    "fancychat/lib/ui_panels.lua": "e13087ce36d20251b1d70aa0608d85f0996a6f93f63889c05cc710316bd04840",
+    "fancychat/lib/ui_settings.lua": "c5510b9f9f3b997c6bc261fa6eb24c8046dc4cc27ac71af0add23671c2fd2f69",
+    "fancychat/utils.lua": "c5160e96cf0e1bb7270eb2418a0d768d85a12cd36c51a7e575e39d0e9d1cc004"
+  },
+  "findings": [
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/fancychat.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "native-interop",
+      "line": 37,
+      "message": "Elevated Lua behavior requires review",
+      "method": "Convert_String",
+      "path": "fancychat/gdifonts/encoding.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 39,
+      "message": "Elevated Lua behavior requires review",
+      "method": "Convert_String",
+      "path": "fancychat/gdifonts/encoding.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 42,
+      "message": "Elevated Lua behavior requires review",
+      "method": "Convert_String",
+      "path": "fancychat/gdifonts/encoding.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 44,
+      "message": "Elevated Lua behavior requires review",
+      "method": "Convert_String",
+      "path": "fancychat/gdifonts/encoding.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 21,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "fancychat/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 80,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "fancychat/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 19,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "fancychat/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 20,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "fancychat/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 203,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "M.draw",
+      "path": "fancychat/lib/bigmode.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/lib/bigmode.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/lib/buffer.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/lib/combat.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 64,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/input.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 164,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/input.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 165,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/input.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 174,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/input.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/lib/lifecycle.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/lib/parser.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "native-interop",
+      "line": 41,
+      "message": "Elevated Lua behavior requires review",
+      "method": "_compass_pid_to_port",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "network",
+      "line": 20,
+      "message": "Sensitive symbol requires semantic review: socket",
+      "method": "<top-level>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "network",
+      "line": 32,
+      "message": "Sensitive symbol requires semantic review: socket",
+      "method": "<top-level>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "network",
+      "line": 79,
+      "message": "Sensitive symbol requires semantic review: socket",
+      "method": "_broadcast_chat_anchor",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "network",
+      "line": 83,
+      "message": "Sensitive symbol requires semantic review: socket",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 207,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 230,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 247,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 928,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 1696,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 2098,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 0,
+      "message": "Global or package environment manipulation requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/lib/ui_helpers.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.environment-manipulation"
+    },
+    {
+      "capability": "obfuscation",
+      "line": 0,
+      "message": "Large encoded payload requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/lib/ui_helpers.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.encoded-payload"
+    },
+    {
+      "capability": "network",
+      "line": 7,
+      "message": "Sensitive symbol requires semantic review: socket",
+      "method": "<top-level>",
+      "path": "fancychat/lib/ui_panels.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1311,
+      "message": "Elevated Lua behavior requires review",
+      "method": "draw_filter_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1326,
+      "message": "Elevated Lua behavior requires review",
+      "method": "draw_filter_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1458,
+      "message": "Elevated Lua behavior requires review",
+      "method": "M.draw_settings_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1459,
+      "message": "Elevated Lua behavior requires review",
+      "method": "M.draw_settings_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 282,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "M.draw_settings_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 1438,
+      "message": "Sensitive symbol requires semantic review: QueueCommand",
+      "method": "M.draw_settings_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.blocked-symbol"
+    },
+    {
+      "capability": "native-interop",
+      "line": 9,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 10,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<top-level>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 574,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "native-interop",
+      "line": 588,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 778,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 797,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1203,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1233,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1355,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1358,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "process-execution",
+      "line": 2488,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 835,
+      "message": "Elevated Lua behavior requires review",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.elevated-capability"
+    },
+    {
+      "capability": "obfuscation",
+      "line": 0,
+      "message": "Large encoded payload requires semantic review",
+      "method": "<top-level>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "static.lua.encoded-payload"
+    },
+    {
+      "capability": "native-interop",
+      "line": 37,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "Convert_String",
+      "path": "fancychat/gdifonts/encoding.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    },
+    {
+      "capability": "native-interop",
+      "line": 39,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "Convert_String",
+      "path": "fancychat/gdifonts/encoding.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    },
+    {
+      "capability": "native-interop",
+      "line": 42,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "Convert_String",
+      "path": "fancychat/gdifonts/encoding.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    },
+    {
+      "capability": "native-interop",
+      "line": 44,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "Convert_String",
+      "path": "fancychat/gdifonts/encoding.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 19,
+      "message": "Addon loads and executes Lua code dynamically.",
+      "method": "<top-level>",
+      "path": "fancychat/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.dynamic-code"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 20,
+      "message": "Addon loads and executes Lua code dynamically.",
+      "method": "<top-level>",
+      "path": "fancychat/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.dynamic-code"
+    },
+    {
+      "capability": "native-interop",
+      "line": 21,
+      "message": "Addon loads a native library dynamically.",
+      "method": "<top-level>",
+      "path": "fancychat/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-library-load"
+    },
+    {
+      "capability": "native-interop",
+      "line": 80,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "<top-level>",
+      "path": "fancychat/gdifonts/include.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 203,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "M.draw",
+      "path": "fancychat/lib/bigmode.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 64,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/input.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 164,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/input.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 165,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/input.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 174,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/input.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "native-interop",
+      "line": 41,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "_compass_pid_to_port",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 207,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 230,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 928,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 1696,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 2098,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "<anonymous function>",
+      "path": "fancychat/lib/render.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 282,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "M.draw_settings_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1311,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "draw_filter_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1326,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "draw_filter_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "game-command-dispatch",
+      "line": 1438,
+      "message": "Addon dispatches an in-game command through Ashita.",
+      "method": "M.draw_settings_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.game-command-dispatch"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1458,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "M.draw_settings_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1459,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "M.draw_settings_panel",
+      "path": "fancychat/lib/ui_settings.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "native-interop",
+      "line": 9,
+      "message": "Addon loads a native library dynamically.",
+      "method": "<top-level>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-library-load"
+    },
+    {
+      "capability": "native-interop",
+      "line": 10,
+      "message": "Addon loads a native library dynamically.",
+      "method": "<top-level>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-library-load"
+    },
+    {
+      "capability": "native-interop",
+      "line": 574,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    },
+    {
+      "capability": "native-interop",
+      "line": 588,
+      "message": "Addon calls a native function through LuaJIT FFI.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.native-call"
+    },
+    {
+      "capability": "process-execution",
+      "line": 778,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "process-execution",
+      "line": 797,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "dynamic-code",
+      "line": 835,
+      "message": "Addon loads and executes Lua code dynamically.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.dynamic-code"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1203,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1233,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1355,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "process-execution",
+      "line": 1358,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "process-execution",
+      "line": 2488,
+      "message": "Addon executes a process or opens a command pipe.",
+      "method": "<anonymous function>",
+      "path": "fancychat/utils.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "product.policy.vanahub.lua.process-execution"
+    },
+    {
+      "capability": "analysis-gap",
+      "line": 197,
+      "message": "Syntax error at line /tmp/vanahub-semantic-1hrdn_gf/source/fancychat/lib/lifecycle.lua:197:\n `next` was unexpected",
+      "method": "M.Init",
+      "path": "fancychat/lib/lifecycle.lua",
+      "reviewed": false,
+      "risk": "elevated",
+      "ruleId": "semgrep.parse-error"
+    }
+  ],
+  "packageId": "fancy-chat",
+  "reviewedCommit": "98ac1de312866d803b065a5275e6421f5197c0eb",
+  "schemaVersion": 1
+}
