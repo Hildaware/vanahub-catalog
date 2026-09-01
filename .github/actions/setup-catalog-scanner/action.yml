@@ -13,6 +13,6 @@ runs:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       with:
         repository: Hildaware/vanahub
-      ref: ed6478b443068283732c0f7bbc46fabc63a85a44
+        ref: ed6478b443068283732c0f7bbc46fabc63a85a44
         path: product
         persist-credentials: false
