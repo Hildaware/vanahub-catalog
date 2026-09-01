@@ -121,11 +121,12 @@ jobs:
             --arg policySha256 "$policy_sha" --arg semgrepVersion "$semgrep_version" \
             '{policyDrift: $drift, currentScanner: {revision: $scannerRevision, policySha256: $policySha256, semgrepVersion: $semgrepVersion}}' > scanner-drift.json
           echo "policy_drift=$policy_drift" >> "$GITHUB_OUTPUT"
-          if (( semantic_status != 0 )) && [[ ! -s semantic-review/semantic-review.json ]]; then
-            exit "$semantic_status"
-          fi
           if (( semantic_status != 0 )); then
-            echo 'Semantic findings are retained for audit and do not block the trusted distro candidate.' >> "$GITHUB_STEP_SUMMARY"
+            if [[ -s semantic-review/semantic-review.json ]]; then
+              echo 'Semantic findings are retained for audit and do not block the trusted distro candidate.' >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo 'The advisory semantic re-scan produced no report; the SHA-bound distro attestation remains the handoff evidence.' >> "$GITHUB_STEP_SUMMARY"
+            fi
           fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()

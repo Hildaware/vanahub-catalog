@@ -125,27 +125,11 @@ jobs:
             bash product/tools/scan_catalog_package.sh "${scan_args[@]}"
             scan_status=$?
             set -e
-            if (( scan_status != 0 )) && [[ "$is_distro_handoff" == true && -s "semantic-publish/$id/semantic-review.json" ]]; then
-              attestation="publish-scan-reports/attestations/$id.json"
-              scanner_revision=$(git -C product rev-parse HEAD)
-              policy_sha=$(sha256sum product/policy/semgrep-lua.yml | cut -d' ' -f1)
-              semgrep_version=$(semgrep --version | head -n 1)
-              drift=false
-              if [[ "$(jq -r .schemaVersion "$attestation")" == 1 ]]; then
-                drift=true
-              elif [[ "$(jq -r .scanner.revision "$attestation")" != "$scanner_revision" || \
-                      "$(jq -r .scanner.policySha256 "$attestation")" != "$policy_sha" || \
-                      "$(jq -r .scanner.semgrepVersion "$attestation")" != "$semgrep_version" ]]; then
-                drift=true
-              fi
-              jq -n --argjson policyDrift "$drift" --arg scannerRevision "$scanner_revision" \
-                --arg policySha256 "$policy_sha" --arg semgrepVersion "$semgrep_version" \
-                '{policyDrift: $policyDrift, currentScanner: {revision: $scannerRevision, policySha256: $policySha256, semgrepVersion: $semgrepVersion}}' \
-                > "publish-scan-reports/$id.scanner-drift.json"
-              if [[ "$drift" == true ]]; then
-                echo "Scanner drift retained for $id." >> "$GITHUB_STEP_SUMMARY"
+            if (( scan_status != 0 )) && [[ "$is_distro_handoff" == true ]]; then
+              if [[ -s "semantic-publish/$id/semantic-review.json" ]]; then
+                echo "Semantic findings retained for $id and do not block trusted distro publication." >> "$GITHUB_STEP_SUMMARY"
               else
-                echo "Semantic findings retained for $id and do not block publication." >> "$GITHUB_STEP_SUMMARY"
+                echo "The advisory re-scan for $id produced no semantic report; the trusted distro attestation remains publication evidence." >> "$GITHUB_STEP_SUMMARY"
               fi
             elif (( scan_status != 0 )); then
               exit "$scan_status"

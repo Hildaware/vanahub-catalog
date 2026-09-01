@@ -50,7 +50,8 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("reconcile-community-distributions:", source)
         self.assertIn("--add-label published", source)
         self.assertIn("group: catalog-publish", source)
-        self.assertIn("Semantic findings retained for $id and do not block publication.", source)
+        self.assertIn("Semantic findings retained for $id and do not block trusted distro publication.", source)
+        self.assertIn("The advisory re-scan for $id produced no semantic report; the trusted distro attestation remains publication evidence.", source)
 
     def test_admission_serializes_each_pull_request(self):
         source = self.workflow("admission.yml")
@@ -59,7 +60,11 @@ class DistributionPipelineWorkflowTests(unittest.TestCase):
         self.assertIn("--allow-community-review", source)
         self.assertIn('review_root=reviews', source)
         self.assertIn('"github-actions[bot]"', source)
-        self.assertIn("Semantic findings are retained for audit and do not block catalog admission.", source)
+        self.assertIn("trusted_distro_handoff=false", source)
+        self.assertIn('if [[ "$trusted_distro_handoff" != true ]]; then', source)
+        self.assertIn('exit "$scan_status"', source)
+        self.assertIn("Semantic findings are retained for audit and do not block trusted distro admission.", source)
+        self.assertIn("The advisory catalog re-scan produced no semantic report; the trusted distro attestation remains attached to the PR.", source)
 
     def test_publish_keeps_private_distro_clone_authenticated(self):
         source = self.workflow("publish.yml")
